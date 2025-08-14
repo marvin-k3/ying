@@ -1,0 +1,38 @@
+# ==== GENERAL ====
+- Always run: `rye run test` before finishing a chunk.
+- If tests fail, fix code or tests in the same chunk. Do not proceed with failing tests.
+- Keep unit tests hermetic: no real network, no real RTSP/ffmpeg spawns, no sleeps.
+- Use dependency injection & fakes for external I/O (ffmpeg, recognizers, clock, embeddings).
+- Prefer small PR-sized changes per chunk. Keep diffs focused.
+
+# ==== CODE STYLE & QUALITY ====
+- Use Python 3.12.
+- Use ruff for lint/format; format on save.
+- Use mypy with strict-ish settings; annotate new functions.
+- Raise precise exceptions; avoid bare except.
+- Keep modules short and single-purpose (SRP); avoid god objects.
+
+# ==== TESTING (GOOGLE-STYLE TDD) ====
+- Write tests first where practical. Table-driven tests for config/edge cases.
+- Property tests (Hypothesis) for dedup time bucketing and retention windows.
+- Fake time (Clock interface) in scheduler tests. No time.sleep in tests.
+- No network in tests; use recorded JSON fixtures for Shazam/AcoustID.
+- Keep tests fast: < 10s total.
+
+# ==== OBSERVABILITY ====
+- Emit Prometheus metrics with low-cardinality labels only.
+- Add tracing spans at API, worker, recognizer, and DB boundaries.
+- Inject trace/span ids into JSON logs.
+
+# ==== SECURITY / RELIABILITY ====
+- `/internal/reload` must exist and be callable without auth (per user choice), but keep it simple and explicit.
+- Do not log secrets or RTSP passwords.
+- SQLite in WAL mode; handle `database is locked` by serializing writes.
+
+# ==== PERFORMANCE ====
+- Async-first; use `asyncio.create_subprocess_exec` for ffmpeg.
+- Cap concurrent recognitions; drop oldest when queue overflows.
+- Vector ops CPU-only; no GPU requirements.
+
+# ==== DOCUMENTATION ====
+- Each chunk updates README or adds a short `CHUNK_NOTES.md` entry.
