@@ -1,0 +1,310 @@
+"""Database repository layer for ying."""
+
+import json
+from datetime import date, datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import aiosqlite
+
+
+class TrackRepository:
+    """Repository for track operations."""
+    
+    def __init__(self, db_path: Path) -> None:
+        """Initialize the repository.
+        
+        Args:
+            db_path: Path to the SQLite database file.
+        """
+        self.db_path = db_path
+    
+    async def upsert_track(
+        self,
+        provider: str,
+        provider_track_id: str,
+        title: str,
+        artist: str,
+        album: Optional[str] = None,
+        isrc: Optional[str] = None,
+        artwork_url: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> int:
+        """Upsert a track (insert or update).
+        
+        Args:
+            provider: The recognition provider (e.g., 'shazam', 'acoustid').
+            provider_track_id: The provider's track ID.
+            title: Track title.
+            artist: Track artist.
+            album: Track album (optional).
+            isrc: ISRC code (optional).
+            artwork_url: URL to track artwork (optional).
+            metadata: Additional metadata as JSON (optional).
+            
+        Returns:
+            The track ID.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            # Check if track exists
+            cursor = await db.execute(
+                "SELECT id FROM tracks WHERE provider = ? AND provider_track_id = ?",
+                (provider, provider_track_id)
+            )
+            existing = await cursor.fetchone()
+            
+            if existing:
+                # Update existing track
+                track_id = existing[0]
+                await db.execute("""
+                    UPDATE tracks 
+                    SET title = ?, artist = ?, album = ?, isrc = ?, 
+                        artwork_url = ?, metadata = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (
+                    title, artist, album, isrc, 
+                    artwork_url, json.dumps(metadata) if metadata else None, 
+                    track_id
+                ))
+                await db.commit()
+                return track_id
+            else:
+                # Insert new track
+                cursor = await db.execute("""
+                    INSERT INTO tracks (
+                        provider, provider_track_id, title, artist, album, 
+                        isrc, artwork_url, metadata
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    provider, provider_track_id, title, artist, album,
+                    isrc, artwork_url, json.dumps(metadata) if metadata else None
+                ))
+                await db.commit()
+                return cursor.lastrowid
+    
+    async def get_track_by_provider_id(self, provider: str, provider_track_id: str) -> Optional[Dict[str, Any]]:
+        """Get a track by provider and provider track ID.
+        
+        Args:
+            provider: The recognition provider.
+            provider_track_id: The provider's track ID.
+            
+        Returns:
+            Track data as dictionary or None if not found.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("""
+                SELECT * FROM tracks WHERE provider = ? AND provider_track_id = ?
+            """, (provider, provider_track_id))
+            row = await cursor.fetchone()
+            
+            if row:
+                return dict(row)
+            return None
+    
+    async def get_track_by_id(self, track_id: int) -> Optional[Dict[str, Any]]:
+        """Get a track by ID.
+        
+        Args:
+            track_id: The track ID.
+            
+        Returns:
+            Track data as dictionary or None if not found.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("SELECT * FROM tracks WHERE id = ?", (track_id,))
+            row = await cursor.fetchone()
+            
+            if row:
+                return dict(row)
+            return None
+
+
+class PlayRepository:
+    """Repository for play operations."""
+    
+    def __init__(self, db_path: Path) -> None:
+        """Initialize the repository.
+        
+        Args:
+            db_path: Path to the SQLite database file.
+        """
+        self.db_path = db_path
+    
+    async def insert_play(
+        self,
+        track_id: int,
+        stream_id: int,
+        recognized_at_utc: datetime,
+        dedup_bucket: int,
+        confidence: Optional[float] = None,
+    ) -> int:
+        """Insert a play record.
+        
+        Args:
+            track_id: The track ID.
+            stream_id: The stream ID.
+            recognized_at_utc: When the track was recognized.
+            dedup_bucket: Deduplication bucket (timestamp / dedup_seconds).
+            confidence: Recognition confidence (optional).
+            
+        Returns:
+            The play ID.
+            
+        Raises:
+            Exception: If duplicate play violates unique constraint.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute("""
+                INSERT INTO plays (
+                    track_id, stream_id, recognized_at_utc, dedup_bucket, confidence
+                ) VALUES (?, ?, ?, ?, ?)
+            """, (track_id, stream_id, recognized_at_utc.isoformat(), dedup_bucket, confidence))
+            await db.commit()
+            return cursor.lastrowid
+    
+    async def get_plays_by_date(
+        self, 
+        target_date: date, 
+        stream_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get plays for a specific date.
+        
+        Args:
+            target_date: The date to get plays for.
+            stream_name: Optional stream name filter.
+            
+        Returns:
+            List of play records with track and stream information.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            
+            if stream_name:
+                # Filter by specific stream
+                cursor = await db.execute("""
+                    SELECT p.*, t.title, t.artist, t.album, t.artwork_url, s.name as stream_name
+                    FROM plays p
+                    JOIN tracks t ON p.track_id = t.id
+                    JOIN streams s ON p.stream_id = s.id
+                    WHERE DATE(p.recognized_at_utc) = ? AND s.name = ?
+                    ORDER BY p.recognized_at_utc DESC
+                """, (target_date.isoformat(), stream_name))
+            else:
+                # Get all streams
+                cursor = await db.execute("""
+                    SELECT p.*, t.title, t.artist, t.album, t.artwork_url, s.name as stream_name
+                    FROM plays p
+                    JOIN tracks t ON p.track_id = t.id
+                    JOIN streams s ON p.stream_id = s.id
+                    WHERE DATE(p.recognized_at_utc) = ?
+                    ORDER BY p.recognized_at_utc DESC
+                """, (target_date.isoformat(),))
+            
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+
+class RecognitionRepository:
+    """Repository for recognition operations."""
+    
+    def __init__(self, db_path: Path) -> None:
+        """Initialize the repository.
+        
+        Args:
+            db_path: Path to the SQLite database file.
+        """
+        self.db_path = db_path
+    
+    async def insert_recognition(
+        self,
+        stream_id: int,
+        provider: str,
+        recognized_at_utc: datetime,
+        window_start_utc: datetime,
+        window_end_utc: datetime,
+        track_id: Optional[int] = None,
+        confidence: Optional[float] = None,
+        latency_ms: Optional[int] = None,
+        raw_response: Optional[Dict[str, Any]] = None,
+        error_message: Optional[str] = None,
+    ) -> int:
+        """Insert a recognition record.
+        
+        Args:
+            stream_id: The stream ID.
+            provider: The recognition provider.
+            recognized_at_utc: When the recognition was completed.
+            window_start_utc: Start of the audio window.
+            window_end_utc: End of the audio window.
+            track_id: The recognized track ID (optional).
+            confidence: Recognition confidence (optional).
+            latency_ms: Recognition latency in milliseconds (optional).
+            raw_response: Raw provider response (optional).
+            error_message: Error message if recognition failed (optional).
+            
+        Returns:
+            The recognition ID.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute("""
+                INSERT INTO recognitions (
+                    stream_id, provider, recognized_at_utc, window_start_utc, 
+                    window_end_utc, track_id, confidence, latency_ms, 
+                    raw_response, error_message
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                stream_id, provider, recognized_at_utc.isoformat(),
+                window_start_utc.isoformat(), window_end_utc.isoformat(),
+                track_id, confidence, latency_ms,
+                json.dumps(raw_response) if raw_response else None,
+                error_message
+            ))
+            await db.commit()
+            return cursor.lastrowid
+    
+    async def get_recent_recognitions(
+        self, 
+        limit: int = 100,
+        stream_name: Optional[str] = None,
+        provider: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get recent recognition records.
+        
+        Args:
+            limit: Maximum number of records to return.
+            stream_name: Optional stream name filter.
+            provider: Optional provider filter.
+            
+        Returns:
+            List of recognition records ordered by recognized_at_utc DESC.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            
+            # Build query with optional filters
+            query = """
+                SELECT r.*, s.name as stream_name, t.title, t.artist
+                FROM recognitions r
+                JOIN streams s ON r.stream_id = s.id
+                LEFT JOIN tracks t ON r.track_id = t.id
+                WHERE 1=1
+            """
+            params = []
+            
+            if stream_name:
+                query += " AND s.name = ?"
+                params.append(stream_name)
+            
+            if provider:
+                query += " AND r.provider = ?"
+                params.append(provider)
+            
+            query += " ORDER BY r.recognized_at_utc DESC LIMIT ?"
+            params.append(limit)
+            
+            cursor = await db.execute(query, params)
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
