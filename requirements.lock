@@ -43,6 +43,8 @@ frozenlist==1.7.0
 fsspec==2025.7.0
     # via huggingface-hub
     # via torch
+googleapis-common-protos==1.70.0
+    # via opentelemetry-exporter-otlp-proto-http
 h11==0.16.0
     # via uvicorn
 hdbscan==0.8.40
@@ -59,6 +61,8 @@ idna==3.10
     # via anyio
     # via requests
     # via yarl
+importlib-metadata==8.7.0
+    # via opentelemetry-api
 jinja2==3.1.6
     # via torch
     # via ying
@@ -124,6 +128,23 @@ nvidia-nvjitlink-cu12==12.8.93
     # via torch
 nvidia-nvtx-cu12==12.8.90
     # via torch
+opentelemetry-api==1.36.0
+    # via opentelemetry-exporter-otlp-proto-http
+    # via opentelemetry-sdk
+    # via opentelemetry-semantic-conventions
+    # via ying
+opentelemetry-exporter-otlp-proto-common==1.36.0
+    # via opentelemetry-exporter-otlp-proto-http
+opentelemetry-exporter-otlp-proto-http==1.36.0
+    # via ying
+opentelemetry-proto==1.36.0
+    # via opentelemetry-exporter-otlp-proto-common
+    # via opentelemetry-exporter-otlp-proto-http
+opentelemetry-sdk==1.36.0
+    # via opentelemetry-exporter-otlp-proto-http
+    # via ying
+opentelemetry-semantic-conventions==0.57b0
+    # via opentelemetry-sdk
 packaging==25.0
     # via huggingface-hub
     # via transformers
@@ -136,6 +157,9 @@ prometheus-client==0.22.1
 propcache==0.3.2
     # via aiohttp
     # via yarl
+protobuf==6.31.1
+    # via googleapis-common-protos
+    # via opentelemetry-proto
 pydantic==2.11.7
     # via fastapi
     # via pydantic-settings
@@ -165,6 +189,7 @@ regex==2025.7.34
     # via transformers
 requests==2.32.4
     # via huggingface-hub
+    # via opentelemetry-exporter-otlp-proto-http
     # via transformers
 safetensors==0.6.2
     # via transformers
@@ -213,6 +238,10 @@ typing-extensions==4.14.1
     # via anyio
     # via fastapi
     # via huggingface-hub
+    # via opentelemetry-api
+    # via opentelemetry-exporter-otlp-proto-http
+    # via opentelemetry-sdk
+    # via opentelemetry-semantic-conventions
     # via pydantic
     # via pydantic-core
     # via sentence-transformers
@@ -238,3 +267,5 @@ websockets==15.0.1
     # via uvicorn
 yarl==1.20.1
     # via aiohttp
+zipp==3.23.0
+    # via importlib-metadata

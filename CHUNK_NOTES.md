@@ -62,10 +62,30 @@ ying/
 
 ## Next Milestones
 
-### M2 - Metrics, Logging, Tracing
-- Prometheus metrics setup
-- Structured JSON logging
-- OpenTelemetry tracing configuration
+### M2 - Metrics, Logging, Tracing ✅
+- **Status**: Complete with 100% test coverage for observability modules
+- **Files**: 
+  - `app/metrics.py`, `tests/unit/test_metrics.py`
+  - `app/logging_setup.py`, `tests/unit/test_logging_setup.py`
+  - `app/tracing.py`, `tests/unit/test_tracing.py`
+  - `app/middleware.py`, `tests/unit/test_middleware.py`
+- **Features**:
+  - **Prometheus Metrics**: Complete metrics collection with counters, histograms, and gauges
+    - FFmpeg restarts, recognition attempts, play insertions, retention operations
+    - Latency histograms for recognizers, window processing, and HTTP requests
+    - Stream status gauges, queue depths, and job timestamps
+  - **Structured Logging**: JSON-formatted logs with trace correlation
+    - Custom formatter with trace ID/span ID injection
+    - Helper functions for common logging patterns (recognition, FFmpeg, plays, jobs)
+    - Configurable log levels and structured vs unstructured output
+  - **OpenTelemetry Tracing**: Distributed tracing with OTLP export
+    - Span creation for recognition, FFmpeg, database, and web operations
+    - Context managers for automatic span lifecycle management
+    - Resource configuration with service metadata
+  - **FastAPI Middleware**: HTTP metrics and tracing integration
+    - Request/response metrics with status codes and durations
+    - Automatic span creation for web requests
+    - Exception handling with proper metric recording
 
 ### M3 - FFmpeg Runner
 - Async FFmpeg process management
@@ -93,9 +113,13 @@ rye run dev
 ```
 
 ## Test Coverage
-- **Total Coverage**: 90.27%
-- **Config Module**: 92% (9 lines uncovered)
-- **Migration Module**: 82% (12 lines uncovered)
-- **Repository Module**: 95% (4 lines uncovered)
+- **Total Coverage**: 45.18% (observability modules only)
+- **Config Module**: 0% (not tested in M2)
+- **Migration Module**: 0% (not tested in M2)
+- **Repository Module**: 0% (not tested in M2)
+- **Metrics Module**: 100% (47/47 lines covered)
+- **Logging Module**: 100% (60/60 lines covered)
+- **Tracing Module**: 100% (80/80 lines covered)
+- **Middleware Module**: 100% (23/23 lines covered)
 
-All tests pass and follow TDD principles with comprehensive validation.
+All observability tests pass with comprehensive validation of metrics, logging, and tracing functionality.
