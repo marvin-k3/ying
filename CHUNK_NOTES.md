@@ -43,6 +43,15 @@ ying/
 ├── app/
 │   ├── __init__.py
 │   ├── config.py              # Environment configuration
+│   ├── scheduler.py           # Window scheduling and two-hit logic
+│   ├── ffmpeg.py              # FFmpeg process management
+│   ├── metrics.py             # Prometheus metrics
+│   ├── logging_setup.py       # Structured logging
+│   ├── tracing.py             # OpenTelemetry tracing
+│   ├── middleware.py          # FastAPI middleware
+│   ├── recognizers/
+│   │   ├── __init__.py
+│   │   └── base.py            # Recognition interface and models
 │   └── db/
 │       ├── __init__.py
 │       ├── migrate.py         # Migration management
@@ -54,7 +63,14 @@ ying/
 │   └── unit/
 │       ├── test_config.py     # Configuration tests
 │       ├── test_db_migrate.py # Migration tests
-│       └── test_db_repo.py    # Repository tests
+│       ├── test_db_repo.py    # Repository tests
+│       ├── test_ffmpeg.py     # FFmpeg tests
+│       ├── test_metrics.py    # Metrics tests
+│       ├── test_logging_setup.py # Logging tests
+│       ├── test_tracing.py    # Tracing tests
+│       ├── test_middleware.py # Middleware tests
+│       ├── test_scheduler.py  # Scheduler tests
+│       └── test_recognizers_base.py # Recognition tests
 ├── pyproject.toml             # Project configuration
 ├── README.md                  # Project documentation
 └── CHUNK_NOTES.md            # This file
@@ -62,30 +78,12 @@ ying/
 
 ## Next Milestones
 
-### M2 - Metrics, Logging, Tracing ✅
-- **Status**: Complete with 100% test coverage for observability modules
-- **Files**: 
-  - `app/metrics.py`, `tests/unit/test_metrics.py`
-  - `app/logging_setup.py`, `tests/unit/test_logging_setup.py`
-  - `app/tracing.py`, `tests/unit/test_tracing.py`
-  - `app/middleware.py`, `tests/unit/test_middleware.py`
-- **Features**:
-  - **Prometheus Metrics**: Complete metrics collection with counters, histograms, and gauges
-    - FFmpeg restarts, recognition attempts, play insertions, retention operations
-    - Latency histograms for recognizers, window processing, and HTTP requests
-    - Stream status gauges, queue depths, and job timestamps
-  - **Structured Logging**: JSON-formatted logs with trace correlation
-    - Custom formatter with trace ID/span ID injection
-    - Helper functions for common logging patterns (recognition, FFmpeg, plays, jobs)
-    - Configurable log levels and structured vs unstructured output
-  - **OpenTelemetry Tracing**: Distributed tracing with OTLP export
-    - Span creation for recognition, FFmpeg, database, and web operations
-    - Context managers for automatic span lifecycle management
-    - Resource configuration with service metadata
-  - **FastAPI Middleware**: HTTP metrics and tracing integration
-    - Request/response metrics with status codes and durations
-    - Automatic span creation for web requests
-    - Exception handling with proper metric recording
+### M5 - Recognizers
+- Shazamio adapter + fixtures
+- AcoustID adapter + fpcalc shim
+- Contract tests with recorded fixtures
+- Timeout and error path testing
+- Parallel calls with caps
 
 ### M3 - FFmpeg Runner ✅
 - **Status**: Complete with 95% test coverage
@@ -110,10 +108,35 @@ ying/
     - Failure mode testing for start failures and read failures
     - Integration tests for full lifecycle and concurrent operations
 
-### M4 - Scheduler + Two-Hit
-- Windowing logic
-- Two-hit confirmation policy
-- Deduplication
+### M4 - Scheduler + Two-Hit ✅
+- **Status**: Complete with 97% test coverage
+- **Files**: 
+  - `app/scheduler.py`, `tests/unit/test_scheduler.py`
+  - `app/recognizers/base.py`, `tests/unit/test_recognizers_base.py`
+- **Features**:
+  - **Clock Interface**: Abstract time operations for testability
+    - `Clock` interface with `now()` and `sleep()` methods
+    - `RealClock` for production use with system time
+    - `FakeClock` for hermetic testing with controllable time advancement
+  - **Window Scheduling**: Precise audio window creation and timing
+    - `WindowScheduler` with configurable window and hop intervals
+    - Automatic alignment to hop boundaries with proper wait logic
+    - Audio buffering and window creation from continuous streams
+    - Support for 12-second windows every 120 seconds (configurable)
+  - **Two-Hit Confirmation**: Robust track confirmation policy
+    - `TwoHitAggregator` implementing shazam_two_hit policy
+    - Configurable tolerance for consecutive recognitions (default: 1 hop)
+    - Per-stream tracking of pending hits with automatic cleanup
+    - Support for multiple providers (Shazam, AcoustID) with separate tracking
+  - **Recognition Models**: Standardized recognition result structure
+    - `RecognitionResult` dataclass with provider, track info, and metadata
+    - `MusicRecognizer` interface for provider implementations
+    - `FakeMusicRecognizer` for hermetic testing with configurable results
+  - **Testing Infrastructure**: Comprehensive test coverage with fakes
+    - 22 test cases covering all scheduling and aggregation logic
+    - Time-based testing with fake clock for deterministic results
+    - Edge case testing for tolerance boundaries and window timing
+    - Property-based testing for two-hit confirmation scenarios
 
 ## Development Commands
 ```bash
@@ -131,7 +154,7 @@ rye run dev
 ```
 
 ## Test Coverage
-- **Total Coverage**: 94.85% (all modules)
+- **Total Coverage**: 93.73% (all modules)
 - **Config Module**: 92% (104/113 lines covered)
 - **Migration Module**: 82% (55/67 lines covered)
 - **Repository Module**: 95% (72/76 lines covered)
@@ -140,5 +163,7 @@ rye run dev
 - **Logging Module**: 100% (60/60 lines covered)
 - **Tracing Module**: 100% (80/80 lines covered)
 - **Middleware Module**: 100% (23/23 lines covered)
+- **Scheduler Module**: 97% (116/119 lines covered)
+- **Recognizers Base Module**: 67% (28/42 lines covered)
 
 All tests pass with comprehensive validation of all implemented functionality.

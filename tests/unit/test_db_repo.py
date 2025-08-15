@@ -1,7 +1,7 @@
 """Tests for app.db.repo module."""
 
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -469,7 +469,7 @@ class TestRecognitionRepository:
     async def test_insert_recognition_success(self, repo: RecognitionRepository, sample_stream_id: int) -> None:
         """Test successfully inserting a recognition."""
         recognized_at = datetime.now(timezone.utc)
-        window_start = recognized_at.replace(second=recognized_at.second - 12)
+        window_start = recognized_at - timedelta(seconds=12)
         window_end = recognized_at
         
         rec_id = await repo.insert_recognition(
@@ -511,7 +511,7 @@ class TestRecognitionRepository:
             track_id = cursor.lastrowid
         
         recognized_at = datetime.now(timezone.utc)
-        window_start = recognized_at.replace(second=recognized_at.second - 12)
+        window_start = recognized_at - timedelta(seconds=12)
         window_end = recognized_at
         
         rec_id = await repo.insert_recognition(
@@ -547,7 +547,7 @@ class TestRecognitionRepository:
         
         for i in range(5):
             rec_time = base_time.replace(minute=base_time.minute - i)
-            window_start = rec_time.replace(second=rec_time.second - 12)
+            window_start = rec_time - timedelta(seconds=12)
             window_end = rec_time
             
             await repo.insert_recognition(
