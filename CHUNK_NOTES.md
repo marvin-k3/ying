@@ -87,10 +87,28 @@ ying/
     - Automatic span creation for web requests
     - Exception handling with proper metric recording
 
-### M3 - FFmpeg Runner
-- Async FFmpeg process management
-- RTSP stream ingestion
-- Audio window extraction
+### M3 - FFmpeg Runner ✅
+- **Status**: Complete with 95% test coverage
+- **Files**: 
+  - `app/ffmpeg.py`, `tests/unit/test_ffmpeg.py`
+- **Features**:
+  - **Async FFmpeg Process Management**: Robust RTSP stream ingestion
+    - `FFmpegConfig` with configurable timeouts, transport, and audio settings
+    - `RealFFmpegRunner` for production use with proper process lifecycle
+    - `FakeFFmpegRunner` for hermetic testing with configurable failure modes
+  - **Robust Error Handling**: Exponential backoff and restart logic
+    - Configurable restart attempts with exponential backoff
+    - Graceful process termination with timeout and kill fallback
+    - Stderr monitoring for error detection and logging
+  - **Audio Data Streaming**: Async generator for continuous audio ingestion
+    - Chunked reading from FFmpeg stdout with proper error handling
+    - Support for WAV format output with configurable sample rate/channels
+    - RTSP transport configuration (TCP/UDP) with timeout settings
+  - **Testing Infrastructure**: Comprehensive test coverage with fakes
+    - 32 test cases covering all functionality including edge cases
+    - Mock-based testing for real runner without actual FFmpeg processes
+    - Failure mode testing for start failures and read failures
+    - Integration tests for full lifecycle and concurrent operations
 
 ### M4 - Scheduler + Two-Hit
 - Windowing logic
@@ -113,13 +131,14 @@ rye run dev
 ```
 
 ## Test Coverage
-- **Total Coverage**: 45.18% (observability modules only)
-- **Config Module**: 0% (not tested in M2)
-- **Migration Module**: 0% (not tested in M2)
-- **Repository Module**: 0% (not tested in M2)
+- **Total Coverage**: 94.85% (all modules)
+- **Config Module**: 92% (104/113 lines covered)
+- **Migration Module**: 82% (55/67 lines covered)
+- **Repository Module**: 95% (72/76 lines covered)
+- **FFmpeg Module**: 95% (147/154 lines covered)
 - **Metrics Module**: 100% (47/47 lines covered)
 - **Logging Module**: 100% (60/60 lines covered)
 - **Tracing Module**: 100% (80/80 lines covered)
 - **Middleware Module**: 100% (23/23 lines covered)
 
-All observability tests pass with comprehensive validation of metrics, logging, and tracing functionality.
+All tests pass with comprehensive validation of all implemented functionality.
