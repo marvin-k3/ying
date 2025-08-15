@@ -74,6 +74,7 @@ migrate = "python -m app.db.migrate"
 embed-backfill = "python -m app.embeddings.index backfill"
 clusters-recompute = "python -m app.clustering.pipeline run-once"
 dev-wav = "python -m app.devharness.wav_stream --from-wav ./tests/data/demo.wav"
+test-integration = "YING_ENABLE_LIVE_TESTS=1 pytest tests/integration/ -v -s"
 
 [tool.ruff]
 target-version = "py312"
@@ -127,6 +128,10 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
+markers = [
+    "integration: marks tests as integration tests (may require network/API access)",
+    "slow: marks tests as slow running",
+]
 addopts = [
     "--strict-markers",
     "--strict-config",

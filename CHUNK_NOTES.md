@@ -106,11 +106,18 @@ ying/
     - Success, failure, timeout, and no-match scenarios
     - High/medium/low confidence matches with realistic metadata
     - Error response patterns for robust error handling testing
-  - **Testing Infrastructure**: 52 test cases with extensive coverage
+  - **Testing Infrastructure**: 52 unit test cases + integration tests
     - Contract testing with recorded fixtures (no real API calls)
     - Error path testing including timeouts and network failures
     - Confidence calculation validation and edge case handling
     - Fake recognizer testing for hermetic test environments
+    - **Live API Integration Tests**: Real Shazam API testing with actual music
+      - Environment-gated tests (`YING_ENABLE_LIVE_TESTS=1` to enable)
+      - **Successful real music recognition**: William Tell Overture identified with 1.00 confidence
+      - Complete metadata extraction: Title, Artist, Album, ISRC, Track ID
+      - Timeout and error handling validation with live services
+      - Multiple audio formats supported (WAV preferred, OGG fallback)
+      - Comprehensive documentation in `docs/INTEGRATION_TESTS.md`
 
 ## Next Milestones
 
@@ -174,6 +181,12 @@ rye run test
 
 # Run specific test files
 rye run test tests/unit/test_config.py -v
+
+# Run integration tests (requires network)
+rye run test-integration
+
+# Run integration tests with AcoustID (requires API key)
+ACOUSTID_API_KEY=your_key rye run test-integration
 
 # Run migrations
 rye run migrate
