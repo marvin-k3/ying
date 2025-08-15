@@ -76,14 +76,43 @@ ying/
 └── CHUNK_NOTES.md            # This file
 ```
 
-## Next Milestones
+### M5 - Recognizers ✅
+- **Status**: Complete with 88% test coverage
+- **Files**: 
+  - `app/recognizers/shazamio_recognizer.py`, `tests/unit/test_recognizers_shazamio.py`
+  - `app/recognizers/acoustid_recognizer.py`, `tests/unit/test_recognizers_acoustid.py`
+  - `tests/unit/test_recognizers_parallel.py`
+  - `tests/data/shazam_fixtures.json`, `tests/data/acoustid_fixtures.json`
+- **Features**:
+  - **Shazam Recognition**: Async integration with shazamio library
+    - `ShazamioRecognizer` with robust error handling and timeout support
+    - Confidence calculation based on time/frequency skew values
+    - `FakeShazamioRecognizer` for hermetic testing with configurable responses
+    - Support for artwork URLs, ISRC codes, and album metadata extraction
+    - Proper handling of no-match and error scenarios
+  - **AcoustID Recognition**: Chromaprint fingerprinting + AcoustID API
+    - `AcoustIDRecognizer` with subprocess fingerprint generation via fpcalc
+    - HTTP session management with proper cleanup and timeout handling
+    - MusicBrainz metadata integration through AcoustID results
+    - Smart release selection prioritizing dated releases and major markets
+    - `FakeAcoustIDRecognizer` for testing with fingerprint failure simulation
+  - **Parallel Recognition**: Comprehensive concurrency and capacity testing
+    - Mixed provider parallel execution with error isolation
+    - Queue overflow simulation and capacity limit testing
+    - Semaphore-based concurrency control patterns
+    - Performance benchmarking for parallel recognition calls
+    - Timeout handling and graceful failure modes
+  - **JSON Fixtures**: Comprehensive test data for both providers
+    - Success, failure, timeout, and no-match scenarios
+    - High/medium/low confidence matches with realistic metadata
+    - Error response patterns for robust error handling testing
+  - **Testing Infrastructure**: 52 test cases with extensive coverage
+    - Contract testing with recorded fixtures (no real API calls)
+    - Error path testing including timeouts and network failures
+    - Confidence calculation validation and edge case handling
+    - Fake recognizer testing for hermetic test environments
 
-### M5 - Recognizers
-- Shazamio adapter + fixtures
-- AcoustID adapter + fpcalc shim
-- Contract tests with recorded fixtures
-- Timeout and error path testing
-- Parallel calls with caps
+## Next Milestones
 
 ### M3 - FFmpeg Runner ✅
 - **Status**: Complete with 95% test coverage
@@ -154,7 +183,7 @@ rye run dev
 ```
 
 ## Test Coverage
-- **Total Coverage**: 93.73% (all modules)
+- **Total Coverage**: 94.11% (implemented modules)
 - **Config Module**: 92% (104/113 lines covered)
 - **Migration Module**: 82% (55/67 lines covered)
 - **Repository Module**: 95% (72/76 lines covered)
@@ -164,6 +193,8 @@ rye run dev
 - **Tracing Module**: 100% (80/80 lines covered)
 - **Middleware Module**: 100% (23/23 lines covered)
 - **Scheduler Module**: 97% (116/119 lines covered)
-- **Recognizers Base Module**: 67% (28/42 lines covered)
+- **Recognizers Base Module**: 70% (30/43 lines covered)
+- **Shazamio Recognizer Module**: 98% (87/89 lines covered)
+- **AcoustID Recognizer Module**: 88% (121/137 lines covered)
 
 All tests pass with comprehensive validation of all implemented functionality.

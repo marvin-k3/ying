@@ -1,0 +1,111 @@
+{
+  "successful_match": {
+    "status": "ok",
+    "results": [
+      {
+        "id": "abcd1234-5678-90ef-ghij-klmnopqrstuv",
+        "score": 0.95,
+        "recordings": [
+          {
+            "id": "abcd1234-5678-90ef-ghij-klmnopqrstuv",
+            "title": "Bohemian Rhapsody",
+            "artists": [
+              {
+                "id": "0383dadf-2a4e-4d10-a46a-e9e041da8eb3",
+                "name": "Queen"
+              }
+            ],
+            "releases": [
+              {
+                "id": "f4a3f3f0-8b3a-4b4c-9a9d-1234567890ab",
+                "title": "A Night At The Opera",
+                "date": "1975",
+                "country": "GB",
+                "mediums": [
+                  {
+                    "format": "CD",
+                    "position": 1,
+                    "tracks": [
+                      {
+                        "id": "track123",
+                        "title": "Bohemian Rhapsody",
+                        "position": 11,
+                        "length": 355000
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "high_confidence_match": {
+    "status": "ok", 
+    "results": [
+      {
+        "id": "xyz789-abc-def-ghi-jklmnopqr",
+        "score": 0.92,
+        "recordings": [
+          {
+            "id": "xyz789-abc-def-ghi-jklmnopqr",
+            "title": "Imagine",
+            "artists": [
+              {
+                "id": "4d5447d7-c61c-4120-ba1b-d7f471d385b9",
+                "name": "John Lennon"
+              }
+            ],
+            "releases": [
+              {
+                "id": "release456",
+                "title": "Imagine",
+                "date": "1971"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "low_confidence_match": {
+    "status": "ok",
+    "results": [
+      {
+        "id": "low123-456-789-abc-def",
+        "score": 0.65,
+        "recordings": [
+          {
+            "id": "low123-456-789-abc-def",
+            "title": "Unclear Song",
+            "artists": [
+              {
+                "name": "Unclear Artist"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "no_match": {
+    "status": "ok",
+    "results": []
+  },
+  "error_response": {
+    "status": "error",
+    "error": {
+      "message": "invalid fingerprint",
+      "code": 1
+    }
+  },
+  "timeout_response": {
+    "status": "error", 
+    "error": {
+      "message": "request timeout",
+      "code": 2
+    }
+  }
+}

@@ -1,0 +1,180 @@
+{
+  "successful_match": {
+    "matches": [
+      {
+        "id": "123456789",
+        "offset": 5.4,
+        "timeskew": 0.0001,
+        "frequencyskew": 0.00001
+      }
+    ],
+    "track": {
+      "key": "123456789",
+      "title": "Bohemian Rhapsody",
+      "subtitle": "Queen",
+      "images": {
+        "coverart": "https://is1-ssl.mzstatic.com/image/thumb/Music/v4/cover.jpg",
+        "background": "https://is1-ssl.mzstatic.com/image/thumb/Music/v4/bg.jpg"
+      },
+      "share": {
+        "subject": "Bohemian Rhapsody - Queen",
+        "text": "I used Shazam to discover Bohemian Rhapsody by Queen.",
+        "href": "https://www.shazam.com/track/123456789/bohemian-rhapsody",
+        "image": "https://is1-ssl.mzstatic.com/image/thumb/Music/v4/share.jpg",
+        "twitter": "I used @Shazam to discover Bohemian Rhapsody by Queen.",
+        "html": "https://www.shazam.com/snippets/email-share/123456789?lang=en&country=US",
+        "snapchat": "https://www.shazam.com/partner/sc/track/123456789"
+      },
+      "hub": {
+        "type": "APPLEMUSIC",
+        "image": "https://images.shazam.com/static/icons/hub/web/v5/applemusic.png",
+        "actions": [
+          {
+            "name": "apple",
+            "type": "applemusicplay",
+            "id": "1440650428"
+          }
+        ],
+        "options": [
+          {
+            "caption": "OPEN",
+            "actions": [
+              {
+                "name": "hub:applemusic:deeplink",
+                "type": "applemusicopen",
+                "uri": "https://music.apple.com/album/1440650428?i=1440650881"
+              }
+            ],
+            "beacondata": {
+              "type": "open",
+              "providername": "applemusic"
+            },
+            "image": "https://images.shazam.com/static/icons/hub/web/v5/overflow-open-option.png",
+            "type": "open",
+            "listcaption": "Open in Apple Music",
+            "overflowimage": "https://images.shazam.com/static/icons/hub/web/v5/applemusic-overflow.png",
+            "colouroverflowimage": false,
+            "providername": "applemusic"
+          }
+        ],
+        "explicit": false,
+        "displayname": "APPLE MUSIC"
+      },
+      "sections": [
+        {
+          "type": "SONG",
+          "metapages": [
+            {
+              "image": "https://is1-ssl.mzstatic.com/image/thumb/Music/v4/cover.jpg",
+              "caption": "Queen"
+            }
+          ],
+          "tabname": "Song",
+          "metadata": [
+            {
+              "title": "Album",
+              "text": "A Night At The Opera"
+            },
+            {
+              "title": "Label",
+              "text": "Hollywood Records"
+            },
+            {
+              "title": "Released",
+              "text": "1975"
+            }
+          ]
+        }
+      ],
+      "url": "https://www.shazam.com/track/123456789/bohemian-rhapsody",
+      "artists": [
+        {
+          "id": "42",
+          "adamid": "3996865"
+        }
+      ],
+      "isrc": "GBUM71505478",
+      "genres": {
+        "primary": "Rock"
+      },
+      "urlparams": {
+        "{tracktitle}": "Bohemian+Rhapsody",
+        "{trackartist}": "Queen"
+      },
+      "myshazam": {
+        "apple": {
+          "actions": [
+            {
+              "name": "myshazam:apple",
+              "type": "applemusicopen",
+              "uri": "https://music.apple.com/album/1440650428?i=1440650881"
+            }
+          ]
+        }
+      },
+      "albumadamid": "1440650428"
+    }
+  },
+  "high_confidence_match": {
+    "matches": [
+      {
+        "id": "987654321",
+        "offset": 2.1,
+        "timeskew": 0.00005,
+        "frequencyskew": 0.000005
+      }
+    ],
+    "track": {
+      "key": "987654321",
+      "title": "Imagine",
+      "subtitle": "John Lennon",
+      "images": {
+        "coverart": "https://is1-ssl.mzstatic.com/image/thumb/Music/v4/imagine-cover.jpg"
+      },
+      "share": {
+        "href": "https://www.shazam.com/track/987654321/imagine"
+      },
+      "isrc": "GBUM71505123",
+      "sections": [
+        {
+          "type": "SONG",
+          "metadata": [
+            {
+              "title": "Album", 
+              "text": "Imagine"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "low_confidence_match": {
+    "matches": [
+      {
+        "id": "111222333",
+        "offset": 15.7,
+        "timeskew": 0.001,
+        "frequencyskew": 0.0001
+      }
+    ],
+    "track": {
+      "key": "111222333",
+      "title": "Unknown Song",
+      "subtitle": "Unknown Artist",
+      "images": {},
+      "share": {
+        "href": "https://www.shazam.com/track/111222333/unknown-song"
+      }
+    }
+  },
+  "no_match": {
+    "matches": [],
+    "track": null
+  },
+  "error_response": {
+    "error": {
+      "message": "Bad request",
+      "code": 400
+    }
+  }
+}

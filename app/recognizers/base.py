@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
+import datetime as dt
 from typing import Any, Dict, Optional
 
 
@@ -36,12 +37,12 @@ class RecognitionResult:
     @property
     def is_success(self) -> bool:
         """Check if recognition was successful."""
-        return self.error_message is None and self.provider_track_id is not None
+        return self.error_message is None and self.provider_track_id != ""
     
     @property
     def is_no_match(self) -> bool:
         """Check if this represents a "no match" result."""
-        return self.error_message is None and not self.provider_track_id
+        return self.error_message is None and self.provider_track_id == ""
 
 
 class MusicRecognizer(ABC):
@@ -103,7 +104,7 @@ class FakeMusicRecognizer(MusicRecognizer):
                 provider_track_id="",
                 title="",
                 artist="",
-                recognized_at_utc=datetime.utcnow(),
+                recognized_at_utc=dt.datetime.now(dt.timezone.utc).replace(tzinfo=None),
                 error_message=self.failure_message
             )
         
