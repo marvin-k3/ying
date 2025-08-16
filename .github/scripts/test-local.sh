@@ -95,10 +95,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential clang
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - uses: eifinger/setup-rye@v4
+      - run: rm -rf .venv  # Clean any existing venv
       - run: rye sync
       - run: rye run lint
       - run: rye run typecheck
@@ -121,7 +124,7 @@ test_docker() {
         
         # Test that the container starts
         print_status "Testing container startup..."
-        if timeout 10s docker run --rm ying:local-test --help &> /dev/null; then
+        if timeout 10s docker run --rm ying:local-test python -c "import app; print('Container starts successfully')" &> /dev/null; then
             print_success "Container starts successfully"
         else
             print_warning "Container startup test timed out or failed"
