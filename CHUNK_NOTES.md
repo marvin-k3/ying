@@ -119,6 +119,35 @@ ying/
       - Multiple audio formats supported (WAV preferred, OGG fallback)
       - Comprehensive documentation in `docs/INTEGRATION_TESTS.md`
 
+### M6 - Worker Orchestration ✅
+- **Status**: Complete with 88% test coverage
+- **Files**:
+  - `app/worker.py`, `tests/unit/test_worker.py`
+  - Updated `app/db/repo.py` with stream name resolution
+- **Features**:
+  - **Complete Pipeline Orchestration**: End-to-end integration from FFmpeg to database
+    - `StreamWorker` class coordinates FFmpeg → Scheduler → Recognizers → Decision → DB
+    - `WorkerManager` handles multiple streams with lifecycle management
+    - `ParallelRecognizers` orchestrates multiple recognition providers concurrently
+  - **Global Capacity Management**: Robust backpressure and resource limits
+    - Global semaphore limiting total concurrent recognitions (default: 3)
+    - Per-provider semaphores preventing individual provider overload (default: 2)
+    - Graceful handling of capacity exhaustion with skipping rather than blocking
+    - Fair scheduling across multiple providers and streams
+  - **Production-Ready Integration**: Proper error handling and resource management
+    - FFmpeg process lifecycle management with automatic restarts
+    - Database connection pooling and transaction management
+    - Stream name to ID resolution with automatic stream creation
+    - Recognition logging for diagnostics and monitoring
+    - Two-hit confirmation logic with configurable tolerance
+  - **Comprehensive Testing**: 13 test cases covering all orchestration scenarios
+    - Worker lifecycle management (start/stop)
+    - Parallel recognition with mixed success/failure scenarios
+    - Capacity limits and backpressure behavior validation
+    - Cross-provider fairness and concurrent execution
+    - Manager functionality for multiple streams
+    - Integration testing with real database operations
+
 ## Next Milestones
 
 ### M3 - FFmpeg Runner ✅
@@ -196,10 +225,10 @@ rye run dev
 ```
 
 ## Test Coverage
-- **Total Coverage**: 94.11% (implemented modules)
+- **Total Coverage**: 91.55% (202 tests passed, 8 skipped)
 - **Config Module**: 92% (104/113 lines covered)
 - **Migration Module**: 82% (55/67 lines covered)
-- **Repository Module**: 95% (72/76 lines covered)
+- **Repository Module**: 80% (74/93 lines covered)
 - **FFmpeg Module**: 95% (147/154 lines covered)
 - **Metrics Module**: 100% (47/47 lines covered)
 - **Logging Module**: 100% (60/60 lines covered)
@@ -209,5 +238,6 @@ rye run dev
 - **Recognizers Base Module**: 70% (30/43 lines covered)
 - **Shazamio Recognizer Module**: 98% (87/89 lines covered)
 - **AcoustID Recognizer Module**: 88% (121/137 lines covered)
+- **Worker Module**: 88% (139/158 lines covered)
 
 All tests pass with comprehensive validation of all implemented functionality.

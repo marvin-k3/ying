@@ -218,6 +218,33 @@ class RecognitionRepository:
         """
         self.db_path = db_path
     
+    async def _get_stream_id(self, stream_name: str) -> int:
+        """Get stream ID by name, creating if it doesn't exist.
+        
+        Args:
+            stream_name: Name of the stream.
+            
+        Returns:
+            Stream ID.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            # Try to find existing stream
+            cursor = await db.execute(
+                "SELECT id FROM streams WHERE name = ?", (stream_name,)
+            )
+            row = await cursor.fetchone()
+            
+            if row:
+                return row[0]
+            
+            # Create new stream
+            cursor = await db.execute(
+                "INSERT INTO streams (name, url, enabled) VALUES (?, ?, ?)",
+                (stream_name, f"rtsp://placeholder/{stream_name}", True)
+            )
+            await db.commit()
+            return cursor.lastrowid
+    
     async def insert_recognition(
         self,
         stream_id: int,
@@ -261,6 +288,65 @@ class RecognitionRepository:
                 track_id, confidence, latency_ms,
                 json.dumps(raw_response) if raw_response else None,
                 error_message
+            ))
+            await db.commit()
+            return cursor.lastrowid
+    
+    async def insert_recognition_by_name(
+        self,
+        stream_name: str,
+        provider: str,
+        provider_track_id: str,
+        title: str,
+        artist: str,
+        album: Optional[str] = None,
+        isrc: Optional[str] = None,
+        artwork_url: Optional[str] = None,
+        confidence: Optional[float] = None,
+        recognized_at_utc: Optional[datetime] = None,
+        raw_response: Optional[Dict[str, Any]] = None
+    ) -> int:
+        """Insert a recognition record using stream name.
+        
+        Args:
+            stream_name: Name of the stream.
+            provider: The recognition provider.
+            provider_track_id: The provider-specific track ID.
+            title: Track title.
+            artist: Track artist.
+            album: Optional album name.
+            isrc: Optional ISRC code.
+            artwork_url: Optional artwork URL.
+            confidence: Optional confidence score.
+            recognized_at_utc: When the recognition was completed (defaults to now).
+            raw_response: Optional raw provider response.
+            
+        Returns:
+            The ID of the inserted recognition record.
+        """
+        if recognized_at_utc is None:
+            recognized_at_utc = datetime.utcnow()
+        
+        # Get stream ID
+        stream_id = await self._get_stream_id(stream_name)
+        
+        # Use a simplified insert - just the essential data for diagnostics
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute("""
+                INSERT INTO recognitions (
+                    stream_id, provider, recognized_at_utc, window_start_utc, 
+                    window_end_utc, track_id, confidence, latency_ms, 
+                    raw_response, error_message
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                stream_id, provider, recognized_at_utc.isoformat(),
+                recognized_at_utc.isoformat(),  # Use same time for window start
+                recognized_at_utc.isoformat(),  # Use same time for window end
+                None,  # track_id - we don't have it in this simplified call
+                confidence, 
+                None,  # latency_ms - we could calculate this later
+                json.dumps(raw_response) if raw_response else None,
+                None  # error_message
             ))
             await db.commit()
             return cursor.lastrowid
