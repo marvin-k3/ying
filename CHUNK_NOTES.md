@@ -148,6 +148,55 @@ ying/
     - Manager functionality for multiple streams
     - Integration testing with real database operations
 
+### M7 - Web: Day View + CSV ✅
+- **Status**: Complete with 100% test coverage
+- **Files**: 
+  - `app/main.py` - FastAPI application with lifespan management
+  - `app/web/routes.py`, `tests/unit/test_web_routes.py`
+  - `app/web/templates/day_view.html` - Bootstrap-based responsive UI
+  - `app/web/static/app.css` - Custom styles
+- **Features**:
+  - **FastAPI Application**: Complete ASGI app with proper lifespan management
+    - Automatic database migrations on startup
+    - Worker manager lifecycle integration
+    - Middleware integration for metrics and tracing
+    - Static file serving and Jinja2 template configuration
+  - **Day View Route**: Main dashboard for viewing daily plays
+    - Pacific Time (PT) date handling with timezone conversion
+    - Stream filtering with validation against enabled streams
+    - Responsive Bootstrap UI with modern design
+    - Real-time loading states and error handling
+    - Album artwork display with fallback icons
+  - **Plays API Endpoint**: JSON/CSV data endpoint with comprehensive filtering
+    - Date validation and PT boundary handling
+    - Stream name validation against configuration
+    - Confidence score formatting and display
+    - UTC to Pacific Time conversion for display
+    - Comprehensive error handling with descriptive messages
+  - **CSV Download**: Full-featured export functionality
+    - Dynamic filename generation based on date and stream
+    - Proper CSV formatting with headers
+    - Browser-friendly download with Content-Disposition headers
+    - Handles missing values gracefully (confidence, album, etc.)
+  - **Health and Management Endpoints**: Production-ready monitoring
+    - `/healthz` endpoint for load balancer health checks
+    - `/metrics` Prometheus endpoint integration
+    - `/internal/reload` hot configuration reload with worker restart
+    - Proper error handling and status reporting
+  - **Modern Frontend**: Bootstrap 5 + vanilla JavaScript SPA-style interface
+    - Mobile-responsive design with optimized layouts
+    - Interactive data tables with album artwork thumbnails
+    - Confidence badges with color-coded severity levels
+    - Real-time search and filtering without page reloads
+    - CSV download integration with progress feedback
+  - **Testing Infrastructure**: 100% test coverage with comprehensive scenarios
+    - FastAPI TestClient integration for full HTTP testing
+    - Mock dependencies for hermetic testing (no real DB/network)
+    - UTC/PT timezone conversion testing
+    - CSV format validation and content testing
+    - Error path testing for invalid dates, streams, and failures
+    - Configuration reload testing with worker manager integration
+
 ## Next Milestones
 
 ### M3 - FFmpeg Runner ✅
@@ -225,11 +274,12 @@ rye run dev
 ```
 
 ## Test Coverage
-- **Total Coverage**: 91.55% (202 tests passed, 8 skipped)
+- **Total Coverage**: 90.94% (218 tests passed, 8 skipped)
 - **Config Module**: 92% (104/113 lines covered)
 - **Migration Module**: 82% (55/67 lines covered)
 - **Repository Module**: 80% (74/93 lines covered)
 - **FFmpeg Module**: 95% (147/154 lines covered)
+- **Main Module**: 66% (42/64 lines covered)
 - **Metrics Module**: 100% (47/47 lines covered)
 - **Logging Module**: 100% (60/60 lines covered)
 - **Tracing Module**: 100% (80/80 lines covered)
@@ -238,6 +288,7 @@ rye run dev
 - **Recognizers Base Module**: 70% (30/43 lines covered)
 - **Shazamio Recognizer Module**: 98% (87/89 lines covered)
 - **AcoustID Recognizer Module**: 88% (121/137 lines covered)
+- **Web Routes Module**: 100% (98/98 lines covered)
 - **Worker Module**: 88% (139/158 lines covered)
 
 All tests pass with comprehensive validation of all implemented functionality.

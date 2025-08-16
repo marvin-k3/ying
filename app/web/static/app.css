@@ -1,0 +1,57 @@
+/* Custom styles for RTSP Music Tagger */
+
+/* Additional styles to complement Bootstrap */
+.artwork-thumbnail {
+    transition: transform 0.2s ease;
+}
+
+.artwork-thumbnail:hover {
+    transform: scale(1.1);
+}
+
+.confidence-high {
+    background-color: #198754 !important;
+}
+
+.confidence-medium {
+    background-color: #ffc107 !important;
+}
+
+.confidence-low {
+    background-color: #dc3545 !important;
+}
+
+.loading-fade {
+    opacity: 0.6;
+}
+
+/* Custom scrollbar for table container */
+.table-responsive::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .artwork-thumbnail {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+}

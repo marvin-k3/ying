@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTSP Music Tagger - Day View</title>
+    <!-- Bootstrap CSS via CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .artwork-thumbnail {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .confidence-badge {
+            font-size: 0.75em;
+        }
+        .loading-spinner {
+            display: none;
+        }
+        .table td {
+            vertical-align: middle;
+        }
+        .stream-filter {
+            max-width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-music-note-beamed"></i>
+                RTSP Music Tagger
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/search">Search</a>
+                <a class="nav-link" href="/diagnostics">Diagnostics</a>
+                <a class="nav-link" href="/clusters">Clusters</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">
+                    <i class="bi bi-calendar-day"></i>
+                    Day View
+                </h1>
+                
+                <!-- Filters -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <form id="filterForm" class="row g-3 align-items-end">
+                            <div class="col-md-6">
+                                <label for="dateInput" class="form-label">Date (Pacific Time)</label>
+                                <input type="date" class="form-control" id="dateInput" value="{{ today }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="streamSelect" class="form-label">Stream</label>
+                                <select class="form-select" id="streamSelect">
+                                    <option value="all">All Streams</option>
+                                    {% for stream in streams %}
+                                    <option value="{{ stream }}">{{ stream }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-search"></i>
+                                    Load
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <span id="resultsTitle">Plays</span>
+                            <span class="badge bg-secondary" id="resultsCount">0</span>
+                        </h5>
+                        <div>
+                            <button class="btn btn-outline-success btn-sm" id="downloadCsv" disabled>
+                                <i class="bi bi-download"></i>
+                                Download CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading indicator -->
+                        <div class="text-center py-4 loading-spinner" id="loadingSpinner">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading plays...</p>
+                        </div>
+
+                        <!-- No results message -->
+                        <div class="text-center py-5 d-none" id="noResults">
+                            <i class="bi bi-music-note text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-3">No plays found for the selected date and stream.</p>
+                        </div>
+
+                        <!-- Results table -->
+                        <div class="table-responsive d-none" id="resultsTable">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Time (PT)</th>
+                                        <th>Track</th>
+                                        <th>Album</th>
+                                        <th>Stream</th>
+                                        <th>Confidence</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="playsTableBody">
+                                    <!-- Plays will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // State management
+        let currentPlays = [];
+        
+        // DOM elements
+        const filterForm = document.getElementById('filterForm');
+        const dateInput = document.getElementById('dateInput');
+        const streamSelect = document.getElementById('streamSelect');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const noResults = document.getElementById('noResults');
+        const resultsTable = document.getElementById('resultsTable');
+        const resultsTitle = document.getElementById('resultsTitle');
+        const resultsCount = document.getElementById('resultsCount');
+        const playsTableBody = document.getElementById('playsTableBody');
+        const downloadCsv = document.getElementById('downloadCsv');
+
+        // Event listeners
+        filterForm.addEventListener('submit', handleFormSubmit);
+        downloadCsv.addEventListener('click', handleDownloadCsv);
+
+        // Initialize with today's data
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPlays();
+        });
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            loadPlays();
+        }
+
+        async function loadPlays() {
+            const date = dateInput.value;
+            const stream = streamSelect.value;
+
+            if (!date) {
+                alert('Please select a date');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const params = new URLSearchParams({
+                    date: date,
+                    stream: stream,
+                    format: 'json'
+                });
+
+                const response = await fetch(`/api/plays?${params}`);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to load plays');
+                }
+
+                const data = await response.json();
+                currentPlays = data.plays;
+                displayPlays(data);
+
+            } catch (error) {
+                console.error('Error loading plays:', error);
+                alert(`Error loading plays: ${error.message}`);
+                showNoResults();
+            }
+        }
+
+        function showLoading() {
+            loadingSpinner.style.display = 'block';
+            noResults.classList.add('d-none');
+            resultsTable.classList.add('d-none');
+            downloadCsv.disabled = true;
+        }
+
+        function showNoResults() {
+            loadingSpinner.style.display = 'none';
+            noResults.classList.remove('d-none');
+            resultsTable.classList.add('d-none');
+            resultsCount.textContent = '0';
+            downloadCsv.disabled = true;
+        }
+
+        function displayPlays(data) {
+            loadingSpinner.style.display = 'none';
+            
+            if (data.plays.length === 0) {
+                showNoResults();
+                return;
+            }
+
+            // Update title and count
+            const streamText = data.stream === 'all' ? 'All Streams' : data.stream;
+            resultsTitle.textContent = `Plays - ${data.date} (${streamText})`;
+            resultsCount.textContent = data.total_count;
+
+            // Clear and populate table
+            playsTableBody.innerHTML = '';
+            
+            data.plays.forEach(play => {
+                const row = createPlayRow(play);
+                playsTableBody.appendChild(row);
+            });
+
+            // Show results
+            noResults.classList.add('d-none');
+            resultsTable.classList.remove('d-none');
+            downloadCsv.disabled = false;
+        }
+
+        function createPlayRow(play) {
+            const row = document.createElement('tr');
+            
+            // Format confidence
+            const confidenceText = play.confidence !== null ? 
+                `${(play.confidence * 100).toFixed(1)}%` : 'N/A';
+            const confidenceClass = play.confidence !== null ?
+                (play.confidence >= 0.8 ? 'success' : play.confidence >= 0.5 ? 'warning' : 'danger') :
+                'secondary';
+
+            row.innerHTML = `
+                <td class="fw-bold">${play.recognized_at_pt}</td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        ${play.artwork_url ? 
+                            `<img src="${play.artwork_url}" alt="Album art" class="artwork-thumbnail me-3" 
+                                 onerror="this.style.display='none'">` : 
+                            '<div class="artwork-thumbnail me-3 bg-light d-flex align-items-center justify-content-center"><i class="bi bi-music-note text-muted"></i></div>'
+                        }
+                        <div>
+                            <div class="fw-bold">${escapeHtml(play.title)}</div>
+                            <div class="text-muted small">${escapeHtml(play.artist)}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="text-muted">${play.album ? escapeHtml(play.album) : 'Unknown'}</span>
+                </td>
+                <td>
+                    <span class="badge bg-info">${escapeHtml(play.stream_name)}</span>
+                </td>
+                <td>
+                    <span class="badge bg-${confidenceClass} confidence-badge">${confidenceText}</span>
+                </td>
+                <td>
+                    <button class="btn btn-outline-primary btn-sm" onclick="showTrackDetails(${play.track_id})">
+                        <i class="bi bi-info-circle"></i>
+                        Details
+                    </button>
+                </td>
+            `;
+            
+            return row;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showTrackDetails(trackId) {
+            // TODO: Implement track details modal
+            alert(`Track details for ID ${trackId} - Coming soon!`);
+        }
+
+        async function handleDownloadCsv() {
+            const date = dateInput.value;
+            const stream = streamSelect.value;
+
+            if (!date || currentPlays.length === 0) {
+                alert('No data to download');
+                return;
+            }
+
+            try {
+                const params = new URLSearchParams({
+                    date: date,
+                    stream: stream,
+                    format: 'csv'
+                });
+
+                const response = await fetch(`/api/plays?${params}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to download CSV');
+                }
+
+                // Trigger download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // Get filename from Content-Disposition header
+                const contentDisposition = response.headers.get('Content-Disposition');
+                const filename = contentDisposition ? 
+                    contentDisposition.split('filename=')[1].replace(/"/g, '') :
+                    `plays_${date}_${stream}.csv`;
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+            } catch (error) {
+                console.error('Error downloading CSV:', error);
+                alert(`Error downloading CSV: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>
