@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+from typing import AsyncGenerator, Generator
 
 import aiosqlite
 import pytest
@@ -19,9 +20,21 @@ class TestMigrationManager:
             return Path(f.name)
 
     @pytest.fixture
-    async def migration_manager(self, temp_db_path: Path) -> MigrationManager:
-        """Create a MigrationManager instance."""
+    def temp_migrations_dir(self) -> Generator[Path, None, None]:
+        """Create a temporary migrations directory."""
+        temp_dir = Path(tempfile.mkdtemp())
+        yield temp_dir
+        # Cleanup - remove all files in temp dir
+        for file in temp_dir.glob("*"):
+            file.unlink()
+        temp_dir.rmdir()
+
+    @pytest.fixture
+    async def migration_manager(self, temp_db_path: Path, temp_migrations_dir: Path) -> AsyncGenerator[MigrationManager, None]:
+        """Create a MigrationManager instance with isolated temp dirs."""
         manager = MigrationManager(temp_db_path)
+        # Override the migrations directory to use our temp dir
+        manager.migrations_dir = temp_migrations_dir
         yield manager
         # Cleanup
         if temp_db_path.exists():
@@ -74,11 +87,8 @@ class TestMigrationManager:
         self, migration_manager: MigrationManager
     ) -> None:
         """Test getting pending migrations."""
-        # Create some migration files
-        migrations_dir = (
-            Path(__file__).parent.parent.parent / "app" / "db" / "migrations"
-        )
-        migrations_dir.mkdir(parents=True, exist_ok=True)
+        # Create test migration files in the temporary migrations directory
+        migrations_dir = migration_manager.migrations_dir
 
         # Create test migration files
         (migrations_dir / "0001_init.sql").write_text("CREATE TABLE test (id INTEGER);")
@@ -89,34 +99,25 @@ class TestMigrationManager:
             "CREATE VIRTUAL TABLE test_fts USING fts5(content);"
         )
 
-        try:
-            await migration_manager.init()
+        await migration_manager.init()
 
-            # Initially all migrations are pending
-            pending = await migration_manager.get_pending_migrations()
-            assert pending == ["0001_init", "0002_add_indexes", "0003_add_fts"]
+        # Initially all migrations are pending
+        pending = await migration_manager.get_pending_migrations()
+        assert pending == ["0001_init", "0002_add_indexes", "0003_add_fts"]
 
-            # Apply first migration
-            await migration_manager.apply_migration("0001_init")
+        # Apply first migration
+        await migration_manager.apply_migration("0001_init")
 
-            # Check pending again
-            pending = await migration_manager.get_pending_migrations()
-            assert pending == ["0002_add_indexes", "0003_add_fts"]
-
-        finally:
-            # Cleanup test files
-            for file in migrations_dir.glob("*.sql"):
-                file.unlink()
+        # Check pending again
+        pending = await migration_manager.get_pending_migrations()
+        assert pending == ["0002_add_indexes", "0003_add_fts"]
 
     async def test_apply_migration_success(
         self, migration_manager: MigrationManager
     ) -> None:
         """Test successfully applying a migration."""
-        # Create test migration file
-        migrations_dir = (
-            Path(__file__).parent.parent.parent / "app" / "db" / "migrations"
-        )
-        migrations_dir.mkdir(parents=True, exist_ok=True)
+        # Create test migration file in the temporary migrations directory
+        migrations_dir = migration_manager.migrations_dir
 
         migration_sql = """
         CREATE TABLE test_table (
@@ -128,117 +129,90 @@ class TestMigrationManager:
         """
         (migrations_dir / "0001_test.sql").write_text(migration_sql)
 
-        try:
-            await migration_manager.init()
-            await migration_manager.apply_migration("0001_test")
+        await migration_manager.init()
+        await migration_manager.apply_migration("0001_test")
 
-            # Verify table was created
-            async with aiosqlite.connect(migration_manager.db_path) as db:
-                cursor = await db.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name='test_table'"
-                )
-                result = await cursor.fetchone()
-                assert result is not None
+        # Verify table was created
+        async with aiosqlite.connect(migration_manager.db_path) as db:
+            cursor = await db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='test_table'"
+            )
+            result = await cursor.fetchone()
+            assert result is not None
 
-                # Verify index was created
-                cursor = await db.execute(
-                    "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_test_name'"
-                )
-                result = await cursor.fetchone()
-                assert result is not None
+            # Verify index was created
+            cursor = await db.execute(
+                "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_test_name'"
+            )
+            result = await cursor.fetchone()
+            assert result is not None
 
-                # Verify migration was recorded
-                cursor = await db.execute(
-                    "SELECT version FROM schema_migrations WHERE version = ?",
-                    ("0001_test",),
-                )
-                result = await cursor.fetchone()
-                assert result is not None
-                assert result[0] == "0001_test"
-
-        finally:
-            # Cleanup
-            if (migrations_dir / "0001_test.sql").exists():
-                (migrations_dir / "0001_test.sql").unlink()
+            # Verify migration was recorded
+            cursor = await db.execute(
+                "SELECT version FROM schema_migrations WHERE version = ?",
+                ("0001_test",),
+            )
+            result = await cursor.fetchone()
+            assert result is not None
+            assert result[0] == "0001_test"
 
     async def test_apply_migration_failure(
         self, migration_manager: MigrationManager
     ) -> None:
         """Test applying a migration with invalid SQL."""
-        # Create test migration file with invalid SQL
-        migrations_dir = (
-            Path(__file__).parent.parent.parent / "app" / "db" / "migrations"
-        )
-        migrations_dir.mkdir(parents=True, exist_ok=True)
+        # Create test migration file with invalid SQL in the temporary migrations directory
+        migrations_dir = migration_manager.migrations_dir
 
         (migrations_dir / "0001_invalid.sql").write_text("INVALID SQL STATEMENT;")
 
-        try:
-            await migration_manager.init()
+        await migration_manager.init()
 
-            with pytest.raises(
-                MigrationError, match="Failed to apply migration 0001_invalid"
-            ):
-                await migration_manager.apply_migration("0001_invalid")
+        with pytest.raises(
+            MigrationError, match="Failed to apply migration 0001_invalid"
+        ):
+            await migration_manager.apply_migration("0001_invalid")
 
-            # Verify migration was not recorded
-            async with aiosqlite.connect(migration_manager.db_path) as db:
-                cursor = await db.execute(
-                    "SELECT version FROM schema_migrations WHERE version = ?",
-                    ("0001_invalid",),
-                )
-                result = await cursor.fetchone()
-                assert result is None
-
-        finally:
-            # Cleanup
-            if (migrations_dir / "0001_invalid.sql").exists():
-                (migrations_dir / "0001_invalid.sql").unlink()
+        # Verify migration was not recorded
+        async with aiosqlite.connect(migration_manager.db_path) as db:
+            cursor = await db.execute(
+                "SELECT version FROM schema_migrations WHERE version = ?",
+                ("0001_invalid",),
+            )
+            result = await cursor.fetchone()
+            assert result is None
 
     async def test_apply_migration_idempotency(
         self, migration_manager: MigrationManager
     ) -> None:
         """Test that applying the same migration twice doesn't cause issues."""
-        # Create test migration file
-        migrations_dir = (
-            Path(__file__).parent.parent.parent / "app" / "db" / "migrations"
-        )
-        migrations_dir.mkdir(parents=True, exist_ok=True)
+        # Create test migration file in the temporary migrations directory
+        migrations_dir = migration_manager.migrations_dir
 
         (migrations_dir / "0001_idempotent.sql").write_text(
             "CREATE TABLE idempotent_test (id INTEGER);"
         )
 
-        try:
-            await migration_manager.init()
+        await migration_manager.init()
 
-            # Apply migration first time
-            await migration_manager.apply_migration("0001_idempotent")
+        # Apply migration first time
+        await migration_manager.apply_migration("0001_idempotent")
 
-            # Apply migration second time - should not fail
-            await migration_manager.apply_migration("0001_idempotent")
+        # Apply migration second time - should not fail
+        await migration_manager.apply_migration("0001_idempotent")
 
-            # Verify table still exists and migration recorded only once
-            async with aiosqlite.connect(migration_manager.db_path) as db:
-                cursor = await db.execute(
-                    "SELECT COUNT(*) FROM schema_migrations WHERE version = ?",
-                    ("0001_idempotent",),
-                )
-                result = await cursor.fetchone()
-                assert result[0] == 1
-
-        finally:
-            # Cleanup
-            if (migrations_dir / "0001_idempotent.sql").exists():
-                (migrations_dir / "0001_idempotent.sql").unlink()
+        # Verify table still exists and migration recorded only once
+        async with aiosqlite.connect(migration_manager.db_path) as db:
+            cursor = await db.execute(
+                "SELECT COUNT(*) FROM schema_migrations WHERE version = ?",
+                ("0001_idempotent",),
+            )
+            result = await cursor.fetchone()
+            assert result[0] == 1
 
     async def test_migrate_all(self, migration_manager: MigrationManager) -> None:
         """Test migrating all pending migrations."""
-        # Create test migration files
-        migrations_dir = (
-            Path(__file__).parent.parent.parent / "app" / "db" / "migrations"
-        )
-        migrations_dir.mkdir(parents=True, exist_ok=True)
+        # Create test migration files in the temporary migrations directory
+        migrations_dir = migration_manager.migrations_dir
 
         (migrations_dir / "0001_first.sql").write_text(
             "CREATE TABLE first (id INTEGER);"
@@ -250,37 +224,31 @@ class TestMigrationManager:
             "CREATE TABLE third (id INTEGER);"
         )
 
-        try:
-            await migration_manager.init()
+        await migration_manager.init()
 
-            # Migrate all
-            applied = await migration_manager.migrate_all()
-            assert applied == ["0001_first", "0002_second", "0003_third"]
+        # Migrate all
+        applied = await migration_manager.migrate_all()
+        assert applied == ["0001_first", "0002_second", "0003_third"]
 
-            # Verify all tables were created
-            async with aiosqlite.connect(migration_manager.db_path) as db:
-                for table in ["first", "second", "third"]:
-                    cursor = await db.execute(
-                        f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}'"
-                    )
-                    result = await cursor.fetchone()
-                    assert result is not None
-
-                # Verify all migrations were recorded
+        # Verify all tables were created
+        async with aiosqlite.connect(migration_manager.db_path) as db:
+            for table in ["first", "second", "third"]:
                 cursor = await db.execute(
-                    "SELECT version FROM schema_migrations ORDER BY version"
+                    f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}'"
                 )
-                results = await cursor.fetchall()
-                assert [row[0] for row in results] == [
-                    "0001_first",
-                    "0002_second",
-                    "0003_third",
-                ]
+                result = await cursor.fetchone()
+                assert result is not None
 
-        finally:
-            # Cleanup
-            for file in migrations_dir.glob("*.sql"):
-                file.unlink()
+            # Verify all migrations were recorded
+            cursor = await db.execute(
+                "SELECT version FROM schema_migrations ORDER BY version"
+            )
+            results = await cursor.fetchall()
+            assert [row[0] for row in results] == [
+                "0001_first",
+                "0002_second",
+                "0003_third",
+            ]
 
     async def test_migration_file_not_found(
         self, migration_manager: MigrationManager
