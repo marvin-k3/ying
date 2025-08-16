@@ -368,3 +368,31 @@ rye run dev
 - **Worker Module**: 88% (139/158 lines covered)
 
 All tests pass with comprehensive validation of all implemented functionality.
+
+## Database Path Fix for Local Development (LATEST)
+
+### Issue Fixed
+The application was failing to start in development mode with:
+```
+sqlite3.OperationalError: unable to open database file
+```
+
+### Root Cause
+The default database path was configured as `/data/plays.db` (production path), but this directory doesn't exist in local development environments.
+
+### Solution
+Updated the `dev` script in `pyproject.toml` to use the local `data` directory:
+
+```toml
+[tool.rye.scripts]
+dev = { env = { DB_PATH = "./data/plays.db" }, cmd = "uvicorn app.main:app --host 0.0.0.0 --port 44100 --reload" }
+```
+
+### Testing Results
+- ✅ Application now starts successfully with `make dev`
+- ✅ Health check endpoint responds correctly  
+- ✅ All unit tests pass (91.42% coverage, exceeding 85% requirement)
+- ✅ Database migrations run properly on startup
+
+### Files Modified
+- `pyproject.toml`: Updated dev script to set correct DB_PATH for local development

@@ -64,7 +64,7 @@ dev-dependencies = [
 ]
 
 [tool.rye.scripts]
-dev = "uvicorn app.main:app --host 0.0.0.0 --port 44100 --reload"
+dev = { env = { DB_PATH = "./data/plays.db" }, cmd = "uvicorn app.main:app --host 0.0.0.0 --port 44100 --reload" }
 serve = "uvicorn app.main:app --host 0.0.0.0 --port 44100"
 test = "pytest -q --cov=app --cov-report=term-missing --cov-fail-under=85"
 lint = "ruff check ."
