@@ -1,10 +1,10 @@
 """OpenTelemetry tracing setup for RTSP Music Tagger."""
 
 import os
-from typing import Optional
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
 # Note: Instrumentation packages are not available in this version
 # from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 # from opentelemetry.instrumentation.aiohttp import AioHttpClientInstrumentor
@@ -12,19 +12,20 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
 # Note: Sampling configuration simplified for compatibility
 
 
 def setup_tracing(
     service_name: str = "rtsp-music-tagger",
-    endpoint: Optional[str] = None,
+    endpoint: str | None = None,
     sample_rate: float = 1.0,
     enable_fastapi: bool = True,
     enable_aiohttp: bool = True,
     enable_asyncio: bool = True,
 ) -> None:
     """Setup OpenTelemetry tracing.
-    
+
     Args:
         service_name: Name of the service for traces
         endpoint: OTLP endpoint URL (defaults to env var OTEL_EXPORTER_OTLP_ENDPOINT)
@@ -36,34 +37,36 @@ def setup_tracing(
     # Get endpoint from environment if not provided
     if endpoint is None:
         endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-    
+
     # Create resource with service information
-    resource = Resource.create({
-        "service.name": service_name,
-        "service.version": "0.1.0",
-        "deployment.environment": os.getenv("ENVIRONMENT", "development"),
-    })
-    
+    resource = Resource.create(
+        {
+            "service.name": service_name,
+            "service.version": "0.1.0",
+            "deployment.environment": os.getenv("ENVIRONMENT", "development"),
+        }
+    )
+
     # Create tracer provider (simplified sampling for compatibility)
     provider = TracerProvider(
         resource=resource,
     )
-    
+
     # Add OTLP exporter if endpoint is provided
     if endpoint:
         otlp_exporter = OTLPSpanExporter(endpoint=endpoint)
         provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
-    
+
     # Set the global tracer provider
     trace.set_tracer_provider(provider)
-    
+
     # Instrument libraries (disabled for now due to dependency issues)
     # if enable_fastapi:
     #     FastAPIInstrumentor.instrument()
-    # 
+    #
     # if enable_aiohttp:
     #     AioHttpClientInstrumentor.instrument()
-    # 
+    #
     # if enable_asyncio:
     #     AsyncioInstrumentor.instrument()
 
@@ -87,7 +90,7 @@ def trace_recognition(
             "provider": provider,
             "stream": stream,
             "window_start": window_start,
-        }
+        },
     )
     return span
 
@@ -104,7 +107,7 @@ def trace_ffmpeg_operation(
         attributes={
             "stream": stream,
             **attributes,
-        }
+        },
     )
     return span
 
@@ -121,7 +124,7 @@ def trace_database_operation(
         attributes={
             "table": table,
             **attributes,
-        }
+        },
     )
     return span
 
@@ -139,7 +142,7 @@ def trace_web_request(
             "http.method": method,
             "http.route": endpoint,
             **attributes,
-        }
+        },
     )
     return span
 
@@ -160,7 +163,7 @@ def trace_background_job(
 # Context managers for automatic span management
 class RecognitionSpan:
     """Context manager for recognition spans."""
-    
+
     def __init__(
         self,
         provider: str,
@@ -170,8 +173,8 @@ class RecognitionSpan:
         self.provider = provider
         self.stream = stream
         self.window_start = window_start
-        self.span: Optional[trace.Span] = None
-    
+        self.span: trace.Span | None = None
+
     def __enter__(self) -> trace.Span:
         self.span = trace_recognition(
             self.provider,
@@ -179,7 +182,7 @@ class RecognitionSpan:
             self.window_start,
         )
         return self.span
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         if self.span:
             if exc_type:
@@ -189,7 +192,7 @@ class RecognitionSpan:
 
 class FFmpegSpan:
     """Context manager for FFmpeg operation spans."""
-    
+
     def __init__(
         self,
         operation: str,
@@ -199,8 +202,8 @@ class FFmpegSpan:
         self.operation = operation
         self.stream = stream
         self.attributes = attributes
-        self.span: Optional[trace.Span] = None
-    
+        self.span: trace.Span | None = None
+
     def __enter__(self) -> trace.Span:
         self.span = trace_ffmpeg_operation(
             self.operation,
@@ -208,7 +211,7 @@ class FFmpegSpan:
             **self.attributes,
         )
         return self.span
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         if self.span:
             if exc_type:
@@ -218,7 +221,7 @@ class FFmpegSpan:
 
 class DatabaseSpan:
     """Context manager for database operation spans."""
-    
+
     def __init__(
         self,
         operation: str,
@@ -228,8 +231,8 @@ class DatabaseSpan:
         self.operation = operation
         self.table = table
         self.attributes = attributes
-        self.span: Optional[trace.Span] = None
-    
+        self.span: trace.Span | None = None
+
     def __enter__(self) -> trace.Span:
         self.span = trace_database_operation(
             self.operation,
@@ -237,7 +240,7 @@ class DatabaseSpan:
             **self.attributes,
         )
         return self.span
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         if self.span:
             if exc_type:

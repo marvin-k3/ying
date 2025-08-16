@@ -1,16 +1,17 @@
 """Prometheus metrics for RTSP Music Tagger."""
 
-from typing import Dict, Any
-from prometheus_client import (
-    Counter,
-    Histogram,
-    Gauge,
-    REGISTRY,
-    generate_latest,
-    CONTENT_TYPE_LATEST,
-)
-from prometheus_client.openmetrics.exposition import generate_latest as generate_openmetrics
+from typing import Any
 
+from prometheus_client import (
+    REGISTRY,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
+from prometheus_client.openmetrics.exposition import (
+    generate_latest as generate_openmetrics,
+)
 
 # Counters
 ffmpeg_restarts_total = Counter(
@@ -125,7 +126,7 @@ def get_metrics_openmetrics() -> bytes:
     return generate_openmetrics(REGISTRY)
 
 
-def get_metrics_dict() -> Dict[str, Any]:
+def get_metrics_dict() -> dict[str, Any]:
     """Get metrics as a dictionary for testing/debugging."""
     # This is a simplified version for testing
     # In production, you'd want to parse the actual metrics output
@@ -160,10 +161,8 @@ def record_recognition(
     provider: str, stream: str, status: str, error_type: str | None = None
 ) -> None:
     """Record a recognition attempt."""
-    recognitions_total.labels(
-        provider=provider, stream=stream, status=status
-    ).inc()
-    
+    recognitions_total.labels(provider=provider, stream=stream, status=status).inc()
+
     if status == "success":
         recognitions_success_total.labels(provider=provider, stream=stream).inc()
     elif status == "failure" and error_type:

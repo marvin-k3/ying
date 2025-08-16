@@ -1,22 +1,21 @@
 """Tests for app.db.repo module."""
 
 import tempfile
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
 
-import pytest
 import aiosqlite
+import pytest
 
-from app.db.repo import PlayRepository, TrackRepository, RecognitionRepository
 from app.db.migrate import MigrationManager
+from app.db.repo import PlayRepository, RecognitionRepository, TrackRepository
 
 
 def ensure_migration_files() -> None:
     """Ensure migration files exist for testing."""
     migrations_dir = Path(__file__).parent.parent.parent / "app" / "db" / "migrations"
     migrations_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Ensure the migration file exists
     migration_file = migrations_dir / "0001_init.sql"
     if not migration_file.exists():
@@ -158,11 +157,11 @@ class TestTrackRepository:
     async def repo(self, temp_db_path: Path) -> TrackRepository:
         """Create a TrackRepository instance with initialized database."""
         ensure_migration_files()
-        
+
         # Initialize database with migrations
         manager = MigrationManager(temp_db_path)
         await manager.migrate_all()
-        
+
         repo = TrackRepository(temp_db_path)
         yield repo
 
@@ -176,22 +175,22 @@ class TestTrackRepository:
             "album": "Test Album",
             "isrc": "USRC12345678",
             "artwork_url": "https://example.com/artwork.jpg",
-            "metadata": {"key": "value"}
+            "metadata": {"key": "value"},
         }
-        
+
         track_id = await repo.upsert_track(**track_data)
         assert track_id > 0
-        
+
         # Verify track was inserted
         async with aiosqlite.connect(repo.db_path) as db:
             cursor = await db.execute(
                 "SELECT id, provider, provider_track_id, title, artist FROM tracks WHERE id = ?",
-                (track_id,)
+                (track_id,),
             )
             row = await cursor.fetchone()
             assert row is not None
             assert row[1] == "shazam"  # provider
-            assert row[2] == "12345"   # provider_track_id
+            assert row[2] == "12345"  # provider_track_id
             assert row[3] == "Test Song"  # title
             assert row[4] == "Test Artist"  # artist
 
@@ -205,9 +204,9 @@ class TestTrackRepository:
             "artist": "Original Artist",
             "album": "Original Album",
         }
-        
+
         track_id1 = await repo.upsert_track(**track_data)
-        
+
         # Update track with new data
         updated_data = {
             "provider": "shazam",
@@ -217,17 +216,17 @@ class TestTrackRepository:
             "album": "Updated Album",
             "artwork_url": "https://example.com/new-artwork.jpg",
         }
-        
+
         track_id2 = await repo.upsert_track(**updated_data)
-        
+
         # Should return same ID
         assert track_id1 == track_id2
-        
+
         # Verify track was updated
         async with aiosqlite.connect(repo.db_path) as db:
             cursor = await db.execute(
                 "SELECT title, artist, album, artwork_url FROM tracks WHERE id = ?",
-                (track_id1,)
+                (track_id1,),
             )
             row = await cursor.fetchone()
             assert row is not None
@@ -245,16 +244,16 @@ class TestTrackRepository:
             "title": "Test Song",
             "artist": "Test Artist",
         }
-        
+
         track_id = await repo.upsert_track(**track_data)
-        
+
         # Get track
         track = await repo.get_track_by_provider_id("shazam", "12345")
         assert track is not None
         assert track["id"] == track_id
         assert track["title"] == "Test Song"
         assert track["artist"] == "Test Artist"
-        
+
         # Test non-existent track
         track = await repo.get_track_by_provider_id("shazam", "nonexistent")
         assert track is None
@@ -268,16 +267,16 @@ class TestTrackRepository:
             "title": "Test Song",
             "artist": "Test Artist",
         }
-        
+
         track_id = await repo.upsert_track(**track_data)
-        
+
         # Get track
         track = await repo.get_track_by_id(track_id)
         assert track is not None
         assert track["id"] == track_id
         assert track["title"] == "Test Song"
         assert track["artist"] == "Test Artist"
-        
+
         # Test non-existent track
         track = await repo.get_track_by_id(99999)
         assert track is None
@@ -301,7 +300,7 @@ class TestPlayRepository:
         # Initialize database with migrations
         manager = MigrationManager(temp_db_path)
         await manager.migrate_all()
-        
+
         repo = PlayRepository(temp_db_path)
         yield repo
 
@@ -309,10 +308,13 @@ class TestPlayRepository:
     async def sample_track_id(self, repo: PlayRepository) -> int:
         """Create a sample track and return its ID."""
         async with aiosqlite.connect(repo.db_path) as db:
-            cursor = await db.execute("""
+            cursor = await db.execute(
+                """
                 INSERT INTO tracks (provider, provider_track_id, title, artist)
                 VALUES (?, ?, ?, ?)
-            """, ("shazam", "12345", "Test Song", "Test Artist"))
+            """,
+                ("shazam", "12345", "Test Song", "Test Artist"),
+            )
             await db.commit()
             return cursor.lastrowid
 
@@ -320,54 +322,58 @@ class TestPlayRepository:
     async def sample_stream_id(self, repo: PlayRepository) -> int:
         """Create a sample stream and return its ID."""
         async with aiosqlite.connect(repo.db_path) as db:
-            cursor = await db.execute("""
+            cursor = await db.execute(
+                """
                 INSERT INTO streams (name, url, enabled)
                 VALUES (?, ?, ?)
-            """, ("test_stream", "rtsp://test", 1))
+            """,
+                ("test_stream", "rtsp://test", 1),
+            )
             await db.commit()
             return cursor.lastrowid
 
-    async def test_insert_play_success(self, repo: PlayRepository, sample_track_id: int, sample_stream_id: int) -> None:
+    async def test_insert_play_success(
+        self, repo: PlayRepository, sample_track_id: int, sample_stream_id: int
+    ) -> None:
         """Test successfully inserting a play."""
-        recognized_at = datetime.now(timezone.utc)
+        recognized_at = datetime.now(UTC)
         dedup_bucket = int(recognized_at.timestamp()) // 300  # 5 minute buckets
-        
+
         play_id = await repo.insert_play(
             track_id=sample_track_id,
             stream_id=sample_stream_id,
             recognized_at_utc=recognized_at,
             dedup_bucket=dedup_bucket,
-            confidence=0.95
+            confidence=0.95,
         )
-        
+
         assert play_id > 0
-        
+
         # Verify play was inserted
         async with aiosqlite.connect(repo.db_path) as db:
-            cursor = await db.execute(
-                "SELECT * FROM plays WHERE id = ?",
-                (play_id,)
-            )
+            cursor = await db.execute("SELECT * FROM plays WHERE id = ?", (play_id,))
             row = await cursor.fetchone()
             assert row is not None
             assert row[1] == sample_track_id  # track_id
             assert row[2] == sample_stream_id  # stream_id
             assert row[5] == 0.95  # confidence
 
-    async def test_insert_play_duplicate_fails(self, repo: PlayRepository, sample_track_id: int, sample_stream_id: int) -> None:
+    async def test_insert_play_duplicate_fails(
+        self, repo: PlayRepository, sample_track_id: int, sample_stream_id: int
+    ) -> None:
         """Test that inserting duplicate play fails due to unique constraint."""
-        recognized_at = datetime.now(timezone.utc)
+        recognized_at = datetime.now(UTC)
         dedup_bucket = int(recognized_at.timestamp()) // 300
-        
+
         # Insert first play
         play_id1 = await repo.insert_play(
             track_id=sample_track_id,
             stream_id=sample_stream_id,
             recognized_at_utc=recognized_at,
             dedup_bucket=dedup_bucket,
-            confidence=0.95
+            confidence=0.95,
         )
-        
+
         # Try to insert duplicate
         with pytest.raises(Exception):  # Should raise due to unique constraint
             await repo.insert_play(
@@ -375,59 +381,80 @@ class TestPlayRepository:
                 stream_id=sample_stream_id,
                 recognized_at_utc=recognized_at,
                 dedup_bucket=dedup_bucket,
-                confidence=0.90
+                confidence=0.90,
             )
 
-    async def test_get_plays_by_date(self, repo: PlayRepository, sample_track_id: int, sample_stream_id: int) -> None:
+    async def test_get_plays_by_date(
+        self, repo: PlayRepository, sample_track_id: int, sample_stream_id: int
+    ) -> None:
         """Test getting plays for a specific date."""
         # Insert plays for different dates
-        base_time = datetime.now(timezone.utc).replace(hour=12, minute=0, second=0, microsecond=0)
-        
+        base_time = datetime.now(UTC).replace(
+            hour=12, minute=0, second=0, microsecond=0
+        )
+
         # Play 1: today
         play1_time = base_time
         dedup1 = int(play1_time.timestamp()) // 300
-        await repo.insert_play(sample_track_id, sample_stream_id, play1_time, dedup1, 0.95)
-        
+        await repo.insert_play(
+            sample_track_id, sample_stream_id, play1_time, dedup1, 0.95
+        )
+
         # Play 2: yesterday
         play2_time = base_time.replace(day=base_time.day - 1)
         dedup2 = int(play2_time.timestamp()) // 300
-        await repo.insert_play(sample_track_id, sample_stream_id, play2_time, dedup2, 0.90)
-        
+        await repo.insert_play(
+            sample_track_id, sample_stream_id, play2_time, dedup2, 0.90
+        )
+
         # Get plays for today
         today_plays = await repo.get_plays_by_date(base_time.date())
         assert len(today_plays) == 1
         assert today_plays[0]["track_id"] == sample_track_id
         assert today_plays[0]["confidence"] == 0.95
-        
+
         # Get plays for yesterday
-        yesterday_plays = await repo.get_plays_by_date((base_time.replace(day=base_time.day - 1)).date())
+        yesterday_plays = await repo.get_plays_by_date(
+            (base_time.replace(day=base_time.day - 1)).date()
+        )
         assert len(yesterday_plays) == 1
         assert yesterday_plays[0]["track_id"] == sample_track_id
         assert yesterday_plays[0]["confidence"] == 0.90
 
-    async def test_get_plays_by_date_with_stream_filter(self, repo: PlayRepository, sample_track_id: int, sample_stream_id: int) -> None:
+    async def test_get_plays_by_date_with_stream_filter(
+        self, repo: PlayRepository, sample_track_id: int, sample_stream_id: int
+    ) -> None:
         """Test getting plays for a specific date with stream filter."""
         # Create second stream
         async with aiosqlite.connect(repo.db_path) as db:
-            cursor = await db.execute("""
+            cursor = await db.execute(
+                """
                 INSERT INTO streams (name, url, enabled)
                 VALUES (?, ?, ?)
-            """, ("test_stream_2", "rtsp://test2", 1))
+            """,
+                ("test_stream_2", "rtsp://test2", 1),
+            )
             await db.commit()
             stream2_id = cursor.lastrowid
-        
-        base_time = datetime.now(timezone.utc).replace(hour=12, minute=0, second=0, microsecond=0)
+
+        base_time = datetime.now(UTC).replace(
+            hour=12, minute=0, second=0, microsecond=0
+        )
         dedup = int(base_time.timestamp()) // 300
-        
+
         # Insert plays for different streams
-        await repo.insert_play(sample_track_id, sample_stream_id, base_time, dedup, 0.95)
+        await repo.insert_play(
+            sample_track_id, sample_stream_id, base_time, dedup, 0.95
+        )
         await repo.insert_play(sample_track_id, stream2_id, base_time, dedup, 0.90)
-        
+
         # Get plays for specific stream
-        stream_plays = await repo.get_plays_by_date(base_time.date(), stream_name="test_stream")
+        stream_plays = await repo.get_plays_by_date(
+            base_time.date(), stream_name="test_stream"
+        )
         assert len(stream_plays) == 1
         assert stream_plays[0]["confidence"] == 0.95
-        
+
         # Get plays for all streams
         all_plays = await repo.get_plays_by_date(base_time.date())
         assert len(all_plays) == 2
@@ -451,7 +478,7 @@ class TestRecognitionRepository:
         # Initialize database with migrations
         manager = MigrationManager(temp_db_path)
         await manager.migrate_all()
-        
+
         repo = RecognitionRepository(temp_db_path)
         yield repo
 
@@ -459,19 +486,24 @@ class TestRecognitionRepository:
     async def sample_stream_id(self, repo: RecognitionRepository) -> int:
         """Create a sample stream and return its ID."""
         async with aiosqlite.connect(repo.db_path) as db:
-            cursor = await db.execute("""
+            cursor = await db.execute(
+                """
                 INSERT INTO streams (name, url, enabled)
                 VALUES (?, ?, ?)
-            """, ("test_stream", "rtsp://test", 1))
+            """,
+                ("test_stream", "rtsp://test", 1),
+            )
             await db.commit()
             return cursor.lastrowid
 
-    async def test_insert_recognition_success(self, repo: RecognitionRepository, sample_stream_id: int) -> None:
+    async def test_insert_recognition_success(
+        self, repo: RecognitionRepository, sample_stream_id: int
+    ) -> None:
         """Test successfully inserting a recognition."""
-        recognized_at = datetime.now(timezone.utc)
+        recognized_at = datetime.now(UTC)
         window_start = recognized_at - timedelta(seconds=12)
         window_end = recognized_at
-        
+
         rec_id = await repo.insert_recognition(
             stream_id=sample_stream_id,
             provider="shazam",
@@ -482,16 +514,16 @@ class TestRecognitionRepository:
             confidence=None,
             latency_ms=1500,
             raw_response={"status": "no_match"},
-            error_message=None
+            error_message=None,
         )
-        
+
         assert rec_id > 0
-        
+
         # Verify recognition was inserted
         async with aiosqlite.connect(repo.db_path) as db:
             cursor = await db.execute(
                 "SELECT id, provider, stream_id, latency_ms FROM recognitions WHERE id = ?",
-                (rec_id,)
+                (rec_id,),
             )
             row = await cursor.fetchone()
             assert row is not None
@@ -499,21 +531,26 @@ class TestRecognitionRepository:
             assert row[2] == sample_stream_id  # stream_id
             assert row[3] == 1500  # latency_ms
 
-    async def test_insert_recognition_with_track(self, repo: RecognitionRepository, sample_stream_id: int) -> None:
+    async def test_insert_recognition_with_track(
+        self, repo: RecognitionRepository, sample_stream_id: int
+    ) -> None:
         """Test inserting a recognition with a matched track."""
         # Create a track first
         async with aiosqlite.connect(repo.db_path) as db:
-            cursor = await db.execute("""
+            cursor = await db.execute(
+                """
                 INSERT INTO tracks (provider, provider_track_id, title, artist)
                 VALUES (?, ?, ?, ?)
-            """, ("shazam", "12345", "Test Song", "Test Artist"))
+            """,
+                ("shazam", "12345", "Test Song", "Test Artist"),
+            )
             await db.commit()
             track_id = cursor.lastrowid
-        
-        recognized_at = datetime.now(timezone.utc)
+
+        recognized_at = datetime.now(UTC)
         window_start = recognized_at - timedelta(seconds=12)
         window_end = recognized_at
-        
+
         rec_id = await repo.insert_recognition(
             stream_id=sample_stream_id,
             provider="shazam",
@@ -524,32 +561,33 @@ class TestRecognitionRepository:
             confidence=0.95,
             latency_ms=1200,
             raw_response={"track": {"title": "Test Song"}},
-            error_message=None
+            error_message=None,
         )
-        
+
         assert rec_id > 0
-        
+
         # Verify recognition was inserted with track
         async with aiosqlite.connect(repo.db_path) as db:
             cursor = await db.execute(
-                "SELECT track_id, confidence FROM recognitions WHERE id = ?",
-                (rec_id,)
+                "SELECT track_id, confidence FROM recognitions WHERE id = ?", (rec_id,)
             )
             row = await cursor.fetchone()
             assert row is not None
             assert row[0] == track_id
             assert row[1] == 0.95
 
-    async def test_get_recent_recognitions(self, repo: RecognitionRepository, sample_stream_id: int) -> None:
+    async def test_get_recent_recognitions(
+        self, repo: RecognitionRepository, sample_stream_id: int
+    ) -> None:
         """Test getting recent recognitions."""
         # Insert multiple recognitions
-        base_time = datetime.now(timezone.utc)
-        
+        base_time = datetime.now(UTC)
+
         for i in range(5):
             rec_time = base_time.replace(minute=base_time.minute - i)
             window_start = rec_time - timedelta(seconds=12)
             window_end = rec_time
-            
+
             await repo.insert_recognition(
                 stream_id=sample_stream_id,
                 provider="shazam",
@@ -560,17 +598,17 @@ class TestRecognitionRepository:
                 confidence=None,
                 latency_ms=1000 + i,
                 raw_response={"test": i},
-                error_message=None
+                error_message=None,
             )
-        
+
         # Get recent recognitions (default limit is 100)
         recent = await repo.get_recent_recognitions()
         assert len(recent) == 5
-        
+
         # Get recent recognitions with limit
         recent = await repo.get_recent_recognitions(limit=3)
         assert len(recent) == 3
-        
+
         # Verify they're ordered by recognized_at_utc DESC
         assert recent[0]["recognized_at_utc"] > recent[1]["recognized_at_utc"]
         assert recent[1]["recognized_at_utc"] > recent[2]["recognized_at_utc"]

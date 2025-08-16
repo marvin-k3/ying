@@ -14,29 +14,33 @@ def convert_ogg_to_wav():
     """Convert OGG to WAV using ffmpeg."""
     input_file = Path(__file__).parent / "william_tell_gallop.ogg"
     output_file = Path(__file__).parent / "william_tell_gallop.wav"
-    
+
     if not input_file.exists():
         print(f"❌ Input file not found: {input_file}")
         return False
-    
+
     if output_file.exists():
         print(f"⚠️  Output file already exists: {output_file}")
         return True
-    
+
     try:
         # Convert using ffmpeg
         cmd = [
             "ffmpeg",
-            "-i", str(input_file),
-            "-acodec", "pcm_s16le",  # 16-bit PCM
-            "-ar", "44100",          # 44.1kHz sample rate
-            "-ac", "1",              # Mono
-            str(output_file)
+            "-i",
+            str(input_file),
+            "-acodec",
+            "pcm_s16le",  # 16-bit PCM
+            "-ar",
+            "44100",  # 44.1kHz sample rate
+            "-ac",
+            "1",  # Mono
+            str(output_file),
         ]
-        
+
         print(f"🔄 Converting {input_file.name} to WAV...")
         result = subprocess.run(cmd, capture_output=True, text=True)
-        
+
         if result.returncode == 0:
             print(f"✅ Successfully converted to {output_file.name}")
             print(f"   Original: {input_file.stat().st_size:,} bytes")
@@ -45,7 +49,7 @@ def convert_ogg_to_wav():
         else:
             print(f"❌ FFmpeg error: {result.stderr}")
             return False
-            
+
     except FileNotFoundError:
         print("❌ ffmpeg not found. Please install ffmpeg first.")
         print("   Ubuntu/Debian: sudo apt-get install ffmpeg")

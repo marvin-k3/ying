@@ -3,8 +3,8 @@
 import json
 import logging
 import sys
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from opentelemetry import trace
 
@@ -20,34 +20,50 @@ class StructuredFormatter(logging.Formatter):
         """Format log record as JSON with trace correlation."""
         # Get current span context
         span_context = trace.get_current_span().get_span_context()
-        
-        log_entry: Dict[str, Any] = {
-            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
+
+        log_entry: dict[str, Any] = {
+            "timestamp": datetime.now(UTC).isoformat() + "Z",
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
         }
-        
+
         # Add trace correlation if enabled and span is valid
         if self.include_trace and span_context.is_valid:
             log_entry["trace_id"] = format(span_context.trace_id, "032x")
             log_entry["span_id"] = format(span_context.span_id, "016x")
-        
+
         # Add exception info if present
         if record.exc_info:
             log_entry["exception"] = self.formatException(record.exc_info)
-        
+
         # Add extra fields from record
         for key, value in record.__dict__.items():
             if key not in {
-                "name", "msg", "args", "levelname", "levelno", "pathname",
-                "filename", "module", "lineno", "funcName", "created",
-                "msecs", "relativeCreated", "thread", "threadName",
-                "processName", "process", "getMessage", "exc_info",
-                "exc_text", "stack_info"
+                "name",
+                "msg",
+                "args",
+                "levelname",
+                "levelno",
+                "pathname",
+                "filename",
+                "module",
+                "lineno",
+                "funcName",
+                "created",
+                "msecs",
+                "relativeCreated",
+                "thread",
+                "threadName",
+                "processName",
+                "process",
+                "getMessage",
+                "exc_info",
+                "exc_text",
+                "stack_info",
             }:
                 log_entry[key] = value
-        
+
         return json.dumps(log_entry, default=str)
 
 
@@ -57,7 +73,7 @@ def setup_logging(
     include_trace: bool = True,
 ) -> None:
     """Setup structured logging with trace correlation.
-    
+
     Args:
         level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         structured: Whether to use JSON formatting
@@ -66,31 +82,29 @@ def setup_logging(
     # Configure root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(getattr(logging, level.upper()))
-    
+
     # Remove existing handlers
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
-    
+
     # Create console handler
     console_handler = logging.StreamHandler(sys.stdout)
-    
+
     if structured:
         console_handler.setFormatter(StructuredFormatter(include_trace=include_trace))
     else:
         console_handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            )
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         )
-    
+
     root_logger.addHandler(console_handler)
-    
+
     # Set specific logger levels
     logging.getLogger("uvicorn").setLevel(logging.INFO)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("aiohttp").setLevel(logging.WARNING)
     logging.getLogger("asyncio").setLevel(logging.WARNING)
-    
+
     # Log startup message
     logger = logging.getLogger(__name__)
     logger.info(
@@ -99,7 +113,7 @@ def setup_logging(
             "level": level,
             "structured": structured,
             "include_trace": include_trace,
-        }
+        },
     )
 
 
@@ -116,8 +130,8 @@ def log_recognition_attempt(
     window_start: datetime,
     duration: float,
     success: bool,
-    error: Optional[str] = None,
-    track_info: Optional[Dict[str, Any]] = None,
+    error: str | None = None,
+    track_info: dict[str, Any] | None = None,
 ) -> None:
     """Log a recognition attempt with structured data."""
     extra = {
@@ -127,13 +141,13 @@ def log_recognition_attempt(
         "duration_seconds": duration,
         "success": success,
     }
-    
+
     if error:
         extra["error"] = error
-    
+
     if track_info:
         extra["track_info"] = track_info
-    
+
     if success:
         logger.info("Recognition successful", extra=extra)
     else:
@@ -144,17 +158,17 @@ def log_ffmpeg_event(
     logger: logging.Logger,
     stream: str,
     event: str,
-    details: Optional[Dict[str, Any]] = None,
+    details: dict[str, Any] | None = None,
 ) -> None:
     """Log an FFmpeg-related event."""
     extra = {
         "stream": stream,
         "event": event,
     }
-    
+
     if details:
         extra.update(details)
-    
+
     logger.info(f"FFmpeg {event}", extra=extra)
 
 
@@ -177,7 +191,7 @@ def log_play_confirmed(
             "provider": provider,
             "confidence": confidence,
             "window_start": window_start.isoformat(),
-        }
+        },
     )
 
 
@@ -196,7 +210,7 @@ def log_retention_job(
             "table": table,
             "deleted_count": deleted_count,
             "duration_seconds": duration,
-        }
+        },
     )
 
 
@@ -213,5 +227,5 @@ def log_clustering_job(
             "tracks_processed": tracks_processed,
             "clusters_found": clusters_found,
             "duration_seconds": duration,
-        }
+        },
     )
