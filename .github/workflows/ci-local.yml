@@ -1,0 +1,109 @@
+# Simplified CI workflow for local testing with act
+# This version removes features that act can't handle
+
+name: CI Local
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Main test job
+  test:
+    name: Test (Python 3.12)
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libchromaprint-tools ffmpeg
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Rye
+        uses: eifinger/setup-rye@v4
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: |
+          rye sync --no-dev
+          rye sync
+
+      - name: Run linting
+        run: |
+          rye run lint
+
+      - name: Run type checking
+        run: |
+          rye run typecheck
+
+      - name: Run unit tests
+        run: |
+          rye run test tests/unit/
+
+  # Docker build test
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    needs: [test]
+    
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ying:test
+
+  # Summary job
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [test, docker-build]
+    if: always()
+    
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check all jobs succeeded
+        run: |
+          if [[ "${{ needs.test.result }}" != "success" ||
+                "${{ needs.docker-build.result }}" != "success" ]]; then
+            echo "One or more CI jobs failed"
+            exit 1
+          fi
+          echo "All CI jobs succeeded!"

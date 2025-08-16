@@ -1,0 +1,48 @@
+{
+  "action": "opened",
+  "number": 1,
+  "pull_request": {
+    "id": 1,
+    "number": 1,
+    "state": "open",
+    "title": "Test PR",
+    "body": "This is a test pull request",
+    "head": {
+      "ref": "feature-branch",
+      "sha": "1234567890123456789012345678901234567890",
+      "repo": {
+        "name": "ying",
+        "full_name": "test/ying",
+        "private": false
+      }
+    },
+    "base": {
+      "ref": "main",
+      "sha": "0000000000000000000000000000000000000000",
+      "repo": {
+        "name": "ying",
+        "full_name": "test/ying",
+        "private": false
+      }
+    },
+    "user": {
+      "login": "test",
+      "id": 1,
+      "type": "User"
+    }
+  },
+  "repository": {
+    "name": "ying",
+    "full_name": "test/ying",
+    "private": false,
+    "owner": {
+      "login": "test",
+      "id": 1
+    }
+  },
+  "sender": {
+    "login": "test",
+    "id": 1,
+    "type": "User"
+  }
+}

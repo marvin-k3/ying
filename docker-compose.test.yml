@@ -1,0 +1,99 @@
+# Docker Compose for local testing
+# This provides a complete testing environment with all dependencies
+
+version: '3.8'
+
+services:
+  # Main application for testing
+  ying-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "44100:44100"
+    environment:
+      - DB_PATH=/data/plays.db
+      - TZ=America/Los_Angeles
+      - STREAM_COUNT=1
+      - STREAM_1_NAME=test
+      - STREAM_1_URL=rtsp://test:test@localhost/stream
+      - STREAM_1_ENABLED=false  # Disabled for testing
+      - ENABLE_PROMETHEUS=true
+    volumes:
+      - test-data:/data
+      - ./tests:/app/tests:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:44100/internal/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - test-network
+
+  # Test runner container
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /app
+    environment:
+      - PYTHONPATH=/app
+      - YING_ENABLE_LIVE_TESTS=0  # Disable live tests by default
+    volumes:
+      - .:/app:ro
+      - test-cache:/app/.pytest_cache
+    networks:
+      - test-network
+    profiles:
+      - testing
+    command: >
+      sh -c "
+        echo 'Running test suite...' &&
+        rye run lint &&
+        rye run typecheck &&
+        rye run test --tb=short
+      "
+
+  # Security scanner
+  security-scanner:
+    image: aquasec/trivy:latest
+    volumes:
+      - .:/workspace:ro
+    working_dir: /workspace
+    profiles:
+      - security
+    command: >
+      sh -c "
+        echo 'Running security scans...' &&
+        trivy fs --format table --severity HIGH,CRITICAL . &&
+        trivy config --format table .
+      "
+
+  # License checker
+  license-checker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /app
+    volumes:
+      - .:/app:ro
+    profiles:
+      - compliance
+    command: >
+      sh -c "
+        echo 'Checking licenses...' &&
+        pip install pip-licenses &&
+        rye export --output requirements-check.txt &&
+        pip-licenses --packages \$(cat requirements-check.txt | grep -v '^#' | cut -d'=' -f1 | tr '\n' ' ') --format=table
+      "
+
+volumes:
+  test-data:
+    driver: local
+  test-cache:
+    driver: local
+
+networks:
+  test-network:
+    driver: bridge

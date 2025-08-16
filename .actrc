@@ -1,0 +1,19 @@
+# act configuration file
+# This configures act to use appropriate Docker images for local testing
+
+# Use more complete images for better compatibility
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+-P ubuntu-22.04=catthehacker/ubuntu:act-22.04
+-P ubuntu-20.04=catthehacker/ubuntu:act-20.04
+
+# Enable verbose output for debugging
+--verbose
+
+# Use .secrets file for local secrets
+--secret-file .secrets
+
+# Bind local files for faster dependency installation
+--bind
+
+# Set default event to push
+--eventpath .github/events/push.json

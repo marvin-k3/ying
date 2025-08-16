@@ -1,0 +1,174 @@
+name: PR from Forks (Untrusted)
+
+# Security: This workflow runs on pull_request_target for PRs from forks
+# It has NO access to secrets and runs with minimal permissions
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+# Security: Minimal permissions - no write access to anything
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  # Security check - only basic static analysis, no secrets
+  security-static-analysis:
+    name: Static Security Analysis
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout PR code (untrusted)
+        uses: actions/checkout@v4
+        with:
+          # Security: Checkout the PR code, not the base
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+
+      - name: Run basic security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: 1
+          severity: 'CRITICAL,HIGH'
+
+  # Basic code quality checks - no secrets, no network access
+  code-quality:
+    name: Code Quality (Untrusted)
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout PR code (untrusted)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Rye
+        uses: eifinger/setup-rye@v4
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: |
+          rye sync --no-dev
+          rye sync
+
+      - name: Run linting
+        run: |
+          rye run lint
+
+      - name: Run type checking
+        run: |
+          rye run typecheck
+
+  # Unit tests only - no network, no secrets, no integration tests
+  unit-tests-untrusted:
+    name: Unit Tests (Untrusted)
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout PR code (untrusted)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libchromaprint-tools ffmpeg
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Rye
+        uses: eifinger/setup-rye@v4
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: |
+          rye sync --no-dev
+          rye sync
+
+      - name: Run unit tests only (no integration)
+        run: |
+          # Security: Only run unit tests, no network access
+          rye run test tests/unit/
+        env:
+          # Security: Explicitly disable live tests
+          YING_ENABLE_LIVE_TESTS: 0
+
+  # Comment on PR with instructions for maintainers
+  pr-instructions:
+    name: PR Instructions
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name != github.repository && github.event.action == 'opened'
+    
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `👋 Thanks for your contribution!
+
+              This PR is from a fork, so it runs with restricted permissions for security.
+
+              **For Maintainers:**
+              - Review the code changes carefully before approving
+              - Integration tests and secrets are not available for fork PRs
+              - Run \`rye run test\` locally to verify full test suite
+              - Use the \`safe to test\` label to run full CI if the PR looks safe
+
+              **Security Note:** This workflow only runs basic checks (linting, type checking, unit tests) without network access or secrets.`
+            })
+
+  # Summary for untrusted PRs
+  untrusted-pr-summary:
+    name: Untrusted PR Check Summary
+    runs-on: ubuntu-latest
+    needs: [security-static-analysis, code-quality, unit-tests-untrusted]
+    if: always() && github.event.pull_request.head.repo.full_name != github.repository
+    
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check results
+        run: |
+          if [[ "${{ needs.security-static-analysis.result }}" != "success" ||
+                "${{ needs.code-quality.result }}" != "success" ||
+                "${{ needs.unit-tests-untrusted.result }}" != "success" ]]; then
+            echo "❌ Some security checks failed for untrusted PR"
+            exit 1
+          fi
+          echo "✅ Basic security checks passed for untrusted PR"

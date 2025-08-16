@@ -310,8 +310,47 @@ rye run migrate
 rye run dev
 ```
 
+## GitHub Workflows & Security + Local Testing (NEW)
+- **Status**: Complete with comprehensive security model and local testing infrastructure
+- **Files**: 
+  - `.github/workflows/ci.yml` - Main CI pipeline (production)
+  - `.github/workflows/ci-local.yml` - Local-friendly CI workflow for act
+  - `.github/workflows/pr-untrusted.yml` - Secure fork PR handling
+  - `.github/workflows/pr-trusted.yml` - Manual maintainer workflow
+  - `.github/workflows/security.yml` - Security scanning suite
+  - `.github/README.md` - Security documentation
+  - `.github/LOCAL_TESTING.md` - Comprehensive local testing guide
+  - `.github/scripts/test-pr.sh` - Helper script for maintainers
+  - `.github/scripts/test-local.sh` - Local testing automation
+  - `.github/scripts/test-workflow.sh` - Individual workflow testing
+  - `.github/events/` - Event payloads for act testing
+  - `Dockerfile` - Multi-stage secure container
+  - `.dockerignore` - Security-focused exclusions
+  - `docker-compose.test.yml` - Complete testing environment
+  - `Makefile` - Convenient development commands
+  - `.actrc` - act configuration for local testing
+  - `.secrets.example` - Template for local secrets
+- **Security Features**:
+  - **Fork PR Security**: Zero secrets access, read-only permissions, sandboxed execution
+  - **Maintainer Controls**: Manual approval workflow for trusted testing
+  - **Multi-layer Scanning**: Trivy, CodeQL, GitLeaks, license compliance
+  - **Container Security**: Hardened Dockerfile with non-root user, health checks
+  - **Dependency Management**: Automated vulnerability scanning with SARIF integration
+  - **Secrets Isolation**: No secrets in untrusted PR workflows
+  - **Comprehensive Testing**: Unit tests, integration tests, security scans, Docker builds
+  - **GitHub Security Integration**: All findings centralized in Security tab
+  - **Incident Response**: Clear procedures for malicious PRs and security alerts
+- **Local Testing Features**:
+  - **Act Integration**: Local GitHub Actions execution with Docker
+  - **Native Testing**: Fast local development workflow (lint, test, typecheck)
+  - **Docker Testing**: Containerized testing environment
+  - **Make Commands**: 15+ convenient development commands
+  - **Multiple Testing Modes**: Native, act, Docker Compose for different scenarios
+  - **Security Testing**: Local vulnerability scanning and license compliance
+  - **Documentation**: Comprehensive guides for all testing approaches
+
 ## Test Coverage
-- **Total Coverage**: 91.43% (238 tests passed, 8 skipped)
+- **Total Coverage**: 92.20% (262 tests passed, 8 skipped)
 - **Config Module**: 92% (104/113 lines covered)
 - **Migration Module**: 82% (55/67 lines covered)
 - **Repository Module**: 80% (74/93 lines covered)

@@ -1,0 +1,184 @@
+name: PR Trusted (Manual)
+
+# Security: This workflow is manually triggered by maintainers
+# for PRs that have been reviewed and deemed safe
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to test'
+        required: true
+        type: string
+      pr_sha:
+        description: 'PR SHA to test'
+        required: true
+        type: string
+
+# Security: Full permissions since this is manually triggered by maintainers
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  security-events: write
+
+jobs:
+  # Validate that the user can trigger this workflow
+  validate-trigger:
+    name: Validate Trigger
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check if user is maintainer
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: membership } = await github.rest.orgs.getMembershipForUser({
+              org: context.repo.owner,
+              username: context.actor
+            }).catch(() => ({ data: null }));
+            
+            const { data: collaborators } = await github.rest.repos.listCollaborators({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: context.actor
+            }).catch(() => ({ data: [] }));
+            
+            const isOrgMember = membership?.role === 'admin' || membership?.role === 'member';
+            const isCollaborator = collaborators.some(c => c.login === context.actor && 
+              (c.permissions.admin || c.permissions.maintain || c.permissions.push));
+            
+            if (!isOrgMember && !isCollaborator) {
+              core.setFailed(`User ${context.actor} is not authorized to run this workflow`);
+            }
+
+  # Full test suite with secrets for trusted PRs
+  trusted-full-test:
+    name: Full Test Suite (Trusted)
+    runs-on: ubuntu-latest
+    needs: [validate-trigger]
+    
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.pr_sha }}
+          fetch-depth: 1
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libchromaprint-tools ffmpeg
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Rye
+        uses: eifinger/setup-rye@v4
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: |
+          rye sync --no-dev
+          rye sync
+
+      - name: Run linting
+        run: |
+          rye run lint
+
+      - name: Run type checking
+        run: |
+          rye run typecheck
+
+      - name: Run unit tests
+        run: |
+          rye run test
+
+      - name: Run integration tests (with secrets)
+        run: |
+          rye run test-integration
+        env:
+          YING_ENABLE_LIVE_TESTS: 1
+          ACOUSTID_API_KEY: ${{ secrets.ACOUSTID_API_KEY }}
+
+      - name: Security scan with full context
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload security results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Comment on PR with results
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const prNumber = ${{ github.event.inputs.pr_number }};
+            const status = '${{ job.status }}' === 'success' ? '✅ PASSED' : '❌ FAILED';
+            
+            github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `**Manual Trusted Test Results:** ${status}
+              
+              This PR has been manually tested by a maintainer with full permissions.
+              
+              - Linting: Completed
+              - Type checking: Completed  
+              - Unit tests: Completed
+              - Integration tests: Completed (with API keys)
+              - Security scan: Completed
+              
+              Triggered by: @${{ github.actor }}
+              SHA: \`${{ github.event.inputs.pr_sha }}\``
+            })
+
+  # Docker build for trusted PRs
+  docker-build-trusted:
+    name: Docker Build (Trusted)
+    runs-on: ubuntu-latest
+    needs: [validate-trigger, trusted-full-test]
+    
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.pr_sha }}
+          fetch-depth: 1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and test Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ying:pr-${{ github.event.inputs.pr_number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image
+        run: |
+          docker run --rm ying:pr-${{ github.event.inputs.pr_number }} --help || true

@@ -1,0 +1,267 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run security scans daily at 3 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+# Security: Minimal required permissions
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  # Dependency vulnerability scanning
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Rye
+        uses: eifinger/setup-rye@v4
+
+      - name: Generate requirements.txt for scanning
+        run: |
+          rye sync --no-dev
+          rye sync
+          # Export dependencies to requirements.txt for vulnerability scanning
+          rye export --output requirements-export.txt
+
+      - name: Run Trivy vulnerability scanner on filesystem
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-fs.sarif'
+
+      - name: Run Trivy vulnerability scanner on requirements
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'requirements-export.txt'
+          format: 'sarif' 
+          output: 'trivy-deps.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-fs.sarif'
+
+      - name: Upload dependency scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-deps.sarif'
+
+      - name: Run Safety check for Python dependencies
+        run: |
+          pip install safety
+          safety check --file requirements-export.txt --output json > safety-report.json || true
+          
+      - name: Upload Safety results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: safety-report
+          path: safety-report.json
+
+  # CodeQL analysis for code security
+  codeql-analysis:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'python', 'javascript' ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+
+      - name: Setup Python (for Python analysis)
+        if: matrix.language == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies (for Python analysis)
+        if: matrix.language == 'python'
+        run: |
+          python -m pip install --upgrade pip
+          # Install minimal dependencies for CodeQL analysis
+          pip install fastapi uvicorn aiosqlite
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"
+
+  # Secret scanning
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for secret scanning
+
+      - name: Run GitLeaks secret scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }} # Optional: for GitLeaks Pro
+
+  # License compliance check
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Rye
+        uses: eifinger/setup-rye@v4
+
+      - name: Install license checker
+        run: |
+          pip install pip-licenses
+
+      - name: Check licenses
+        run: |
+          rye sync --no-dev
+          rye sync
+          # Generate requirements file
+          rye export --output requirements-for-licenses.txt
+          # Check licenses - allow common permissive licenses
+          pip-licenses --packages $(cat requirements-for-licenses.txt | grep -v '^#' | cut -d'=' -f1 | tr '\n' ' ') \
+                      --allow-only="MIT;Apache Software License;BSD License;Apache;BSD;ISC License (ISCL);Apache 2.0;MIT License;BSD-3-Clause;Apache-2.0;ISC;GPL-2.0;LGPL-2.1;MPL-2.0" \
+                      --format=json > license-report.json
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: license-report
+          path: license-report.json
+
+  # Docker image security scanning
+  docker-security:
+    name: Docker Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image for scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: ying:security-scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy security scan on Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ying:security-scan'
+          format: 'sarif'
+          output: 'trivy-docker.sarif'
+
+      - name: Upload Docker scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-docker.sarif'
+
+  # Security summary
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, codeql-analysis, secret-scan, license-check]
+    if: always()
+    
+    permissions:
+      contents: read
+
+    steps:
+      - name: Security check summary
+        run: |
+          echo "Security Scan Results:"
+          echo "- Dependency Scan: ${{ needs.dependency-scan.result }}"
+          echo "- CodeQL Analysis: ${{ needs.codeql-analysis.result }}"
+          echo "- Secret Scan: ${{ needs.secret-scan.result }}"
+          echo "- License Check: ${{ needs.license-check.result }}"
+          
+          if [[ "${{ needs.dependency-scan.result }}" == "failure" ||
+                "${{ needs.codeql-analysis.result }}" == "failure" ||
+                "${{ needs.secret-scan.result }}" == "failure" ||
+                "${{ needs.license-check.result }}" == "failure" ]]; then
+            echo "❌ One or more security checks failed"
+            exit 1
+          fi
+          
+          echo "✅ All security checks passed"
