@@ -126,7 +126,7 @@ def get_metrics_openmetrics() -> bytes:
     result = generate_openmetrics(REGISTRY)
     if isinstance(result, bytes):
         return result
-    return str(result).encode('utf-8')
+    return str(result).encode("utf-8")
 
 
 def get_metrics_dict() -> dict[str, Any]:

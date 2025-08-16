@@ -183,7 +183,12 @@ class RecognitionSpan:
         )
         return self.span
 
-    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
         if self.span:
             if exc_type:
                 self.span.set_status(trace.Status(trace.StatusCode.ERROR, str(exc_val)))
@@ -212,7 +217,12 @@ class FFmpegSpan:
         )
         return self.span
 
-    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
         if self.span:
             if exc_type:
                 self.span.set_status(trace.Status(trace.StatusCode.ERROR, str(exc_val)))
@@ -241,7 +251,12 @@ class DatabaseSpan:
         )
         return self.span
 
-    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
         if self.span:
             if exc_type:
                 self.span.set_status(trace.Status(trace.StatusCode.ERROR, str(exc_val)))

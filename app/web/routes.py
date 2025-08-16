@@ -375,7 +375,9 @@ async def get_recognition_raw(
             parsed_response: dict[str, Any] = json.loads(raw_response)
             return parsed_response
         except json.JSONDecodeError as e:
-            raise HTTPException(status_code=500, detail="Invalid JSON in raw response") from e
+            raise HTTPException(
+                status_code=500, detail="Invalid JSON in raw response"
+            ) from e
 
 
 @router.post("/internal/reload")

@@ -10,7 +10,7 @@ from .ffmpeg import FFmpegRunner, RealFFmpegRunner
 from .recognizers.acoustid_recognizer import AcoustIDRecognizer
 from .recognizers.base import MusicRecognizer, RecognitionResult
 from .recognizers.shazamio_recognizer import ShazamioRecognizer
-from .scheduler import AudioWindow, Clock, RealClock, TwoHitAggregator, WindowScheduler
+from .scheduler import Clock, RealClock, TwoHitAggregator, WindowScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -295,9 +295,13 @@ class StreamWorker:
             )
 
             # Get stream_id and calculate dedup_bucket
-            stream_id = await self.recognition_repo._get_stream_id(self.stream_config.name)
-            dedup_bucket = int(result.recognized_at_utc.timestamp()) // self.config.dedup_seconds
-            
+            stream_id = await self.recognition_repo._get_stream_id(
+                self.stream_config.name
+            )
+            dedup_bucket = (
+                int(result.recognized_at_utc.timestamp()) // self.config.dedup_seconds
+            )
+
             # Then insert the play
             await self.play_repo.insert_play(
                 track_id=track_id,

@@ -375,7 +375,9 @@ class TestPlayRepository:
         )
 
         # Try to insert duplicate
-        with pytest.raises((ValueError, RuntimeError, Exception)):  # Should raise due to unique constraint
+        with pytest.raises(
+            (ValueError, RuntimeError, Exception)
+        ):  # Should raise due to unique constraint
             await repo.insert_play(
                 track_id=sample_track_id,
                 stream_id=sample_stream_id,

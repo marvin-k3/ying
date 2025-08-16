@@ -245,9 +245,7 @@ class TestMethodNameValidation:
         assert hasattr(manager, "migrate_all"), (
             "MigrationManager should have migrate_all method"
         )
-        assert callable(manager.migrate_all), (
-            "migrate_all should be callable"
-        )
+        assert callable(manager.migrate_all), "migrate_all should be callable"
 
         # Check that old method names don't exist
         assert not hasattr(manager, "apply_migrations"), (
