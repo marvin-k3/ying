@@ -42,9 +42,9 @@ htmlcov/
 
 # Documentation
 docs/
-*.md
 PLAN.md
 CHUNK_NOTES.md
+# Exclude other markdown files but keep README.md for package build
 
 # Development
 .venv/

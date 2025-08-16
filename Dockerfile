@@ -7,6 +7,10 @@ RUN apt-get update && \
         ffmpeg \
         libchromaprint-tools \
         curl \
+        build-essential \
+        gcc \
+        g++ \
+        clang \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Rye
@@ -18,7 +22,7 @@ RUN curl -sSf https://rye.astral.sh/get | RYE_INSTALL_OPTION="--yes" bash && \
 WORKDIR /app
 
 # Copy project configuration first for better caching
-COPY pyproject.toml .python-version ./
+COPY pyproject.toml .python-version README.md ./
 COPY requirements*.lock ./
 
 # Sync dependencies (production only for security)
