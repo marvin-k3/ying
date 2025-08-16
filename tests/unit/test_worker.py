@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import AsyncGenerator, Dict, List, Optional
@@ -61,7 +61,7 @@ class FakeMusicRecognizer(MusicRecognizer):
             provider_track_id=f"fake_{self.provider}_{self.call_count}",
             title=f"Test Song {self.call_count}",
             artist=f"Test Artist {self.call_count}",
-            recognized_at_utc=datetime.utcnow(),
+            recognized_at_utc=datetime.now(timezone.utc),
             confidence=0.8,
             raw_response={"fake": True}
         )
@@ -144,7 +144,7 @@ class TestParallelRecognizers:
             provider_track_id="shazam_123",
             title="Test Song",
             artist="Test Artist",
-            recognized_at_utc=datetime.utcnow(),
+            recognized_at_utc=datetime.now(timezone.utc),
             confidence=0.9,
             raw_response={"shazam": True}
         )
@@ -154,7 +154,7 @@ class TestParallelRecognizers:
             provider_track_id="acoustid_456",
             title="Test Song",
             artist="Test Artist",
-            recognized_at_utc=datetime.utcnow(),
+            recognized_at_utc=datetime.now(timezone.utc),
             confidence=0.8,
             raw_response={"acoustid": True}
         )
@@ -189,7 +189,7 @@ class TestParallelRecognizers:
             provider_track_id="shazam_123",
             title="Test Song",
             artist="Test Artist",
-            recognized_at_utc=datetime.utcnow(),
+            recognized_at_utc=datetime.now(timezone.utc),
             confidence=0.9,
             raw_response={"shazam": True}
         )
@@ -224,7 +224,7 @@ class TestParallelRecognizers:
                 provider_track_id="test_123",
                 title="Test Song",
                 artist="Test Artist",
-                recognized_at_utc=datetime.utcnow(),
+                recognized_at_utc=datetime.now(timezone.utc),
                 confidence=0.8,
                 raw_response={"test": True}
             )
@@ -348,7 +348,7 @@ class TestWorkerManager:
     @pytest.mark.asyncio
     async def test_create_recognizers(self, config):
         """Test recognizer creation based on configuration."""
-        clock = FakeClock(datetime.utcnow())
+        clock = FakeClock(datetime.now(timezone.utc))
         manager = WorkerManager(config, clock)
         
         recognizers = manager._create_recognizers()
@@ -363,7 +363,7 @@ class TestWorkerManager:
         """Test recognizer creation with AcoustID disabled."""
         config.acoustid_enabled = False
         
-        clock = FakeClock(datetime.utcnow())
+        clock = FakeClock(datetime.now(timezone.utc))
         manager = WorkerManager(config, clock)
         
         recognizers = manager._create_recognizers()
@@ -381,7 +381,7 @@ class TestWorkerManager:
         migrator = MigrationManager(temp_db)
         await migrator.migrate_all()
         
-        clock = FakeClock(datetime.utcnow())
+        clock = FakeClock(datetime.now(timezone.utc))
         
         with patch('app.worker.RealFFmpegRunner') as mock_ffmpeg:
             # Mock the FFmpeg runner to avoid actual processes
@@ -415,7 +415,7 @@ class TestWorkerManager:
         migrator = MigrationManager(temp_db)
         await migrator.migrate_all()
         
-        clock = FakeClock(datetime.utcnow())
+        clock = FakeClock(datetime.now(timezone.utc))
         
         with patch('app.worker.RealFFmpegRunner') as mock_ffmpeg:
             mock_instance = AsyncMock()
@@ -441,7 +441,7 @@ class TestWorkerManager:
         migrator = MigrationManager(temp_db)
         await migrator.migrate_all()
         
-        clock = FakeClock(datetime.utcnow())
+        clock = FakeClock(datetime.now(timezone.utc))
         
         with patch('app.worker.RealFFmpegRunner') as mock_ffmpeg:
             mock_instance = AsyncMock()
@@ -480,7 +480,7 @@ class TestBackpressureAndCapacity:
                 provider_track_id=f"track_{call_count}",
                 title="Slow Song",
                 artist="Slow Artist",
-                recognized_at_utc=datetime.utcnow(),
+                recognized_at_utc=datetime.now(timezone.utc),
                 confidence=0.8,
                 raw_response={"slow": True}
             )
@@ -523,7 +523,7 @@ class TestBackpressureAndCapacity:
                 provider_track_id=f"track_{call_count}",
                 title="Limited Song",
                 artist="Limited Artist",
-                recognized_at_utc=datetime.utcnow(),
+                recognized_at_utc=datetime.now(timezone.utc),
                 confidence=0.8,
                 raw_response={"limited": True}
             )
@@ -566,7 +566,7 @@ class TestBackpressureAndCapacity:
                 provider_track_id=f"shazam_{shazam_calls}",
                 title="Shazam Song",
                 artist="Shazam Artist",
-                recognized_at_utc=datetime.utcnow(),
+                recognized_at_utc=datetime.now(timezone.utc),
                 confidence=0.9,
                 raw_response={"shazam": True}
             )
@@ -580,7 +580,7 @@ class TestBackpressureAndCapacity:
                 provider_track_id=f"acoustid_{acoustid_calls}",
                 title="AcoustID Song",
                 artist="AcoustID Artist",
-                recognized_at_utc=datetime.utcnow(),
+                recognized_at_utc=datetime.now(timezone.utc),
                 confidence=0.8,
                 raw_response={"acoustid": True}
             )

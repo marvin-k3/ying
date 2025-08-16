@@ -1,7 +1,7 @@
 """Database repository layer for ying."""
 
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -325,7 +325,7 @@ class RecognitionRepository:
             The ID of the inserted recognition record.
         """
         if recognized_at_utc is None:
-            recognized_at_utc = datetime.utcnow()
+            recognized_at_utc = datetime.now(timezone.utc)
         
         # Get stream ID
         stream_id = await self._get_stream_id(stream_name)

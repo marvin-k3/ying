@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import datetime as dt
 from typing import Any, Dict, Optional
 
@@ -113,7 +113,7 @@ class FakeMusicRecognizer(MusicRecognizer):
             result = self.results[(self.call_count - 1) % len(self.results)]
             # Update timestamp to current time
             return RecognitionResult(
-                **{**result.__dict__, 'recognized_at_utc': datetime.utcnow()}
+                **{**result.__dict__, 'recognized_at_utc': datetime.now(timezone.utc)}
             )
         
         # Default no-match result
@@ -122,5 +122,5 @@ class FakeMusicRecognizer(MusicRecognizer):
             provider_track_id="",
             title="",
             artist="",
-            recognized_at_utc=datetime.utcnow()
+            recognized_at_utc=datetime.now(timezone.utc)
         )

@@ -3,7 +3,7 @@
 import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import AsyncGenerator, Dict, List, Optional, Set
 
 from .config import Config
@@ -29,7 +29,7 @@ class RealClock(Clock):
     
     def now(self) -> datetime:
         """Get current UTC time."""
-        return datetime.utcnow()
+        return datetime.now(timezone.utc)
     
     async def sleep(self, seconds: float) -> None:
         """Sleep for the specified number of seconds."""
@@ -45,7 +45,7 @@ class FakeClock(Clock):
         Args:
             start_time: Initial time. Defaults to current UTC time.
         """
-        self._current_time = start_time or datetime.utcnow()
+        self._current_time = start_time or datetime.now(timezone.utc)
         self._sleep_calls: List[float] = []
     
     def now(self) -> datetime:

@@ -1,7 +1,7 @@
 """Tests for scheduler module."""
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import AsyncGenerator
 
 from app.config import Config
@@ -18,9 +18,9 @@ class TestClock:
     def test_real_clock_now(self):
         """Test real clock returns current time."""
         clock = RealClock()
-        before = datetime.utcnow()
+        before = datetime.now(timezone.utc)
         now = clock.now()
-        after = datetime.utcnow()
+        after = datetime.now(timezone.utc)
         
         assert before <= now <= after
     
