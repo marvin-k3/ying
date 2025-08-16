@@ -2,16 +2,18 @@
 
 import csv
 import io
+import json
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
+import aiosqlite
 import pytz
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
 
 from ..config import Config
-from ..db.repo import PlayRepository
+from ..db.repo import PlayRepository, RecognitionRepository
 from ..worker import WorkerManager
 
 
@@ -43,6 +45,33 @@ class PlaysResponse(BaseModel):
     total_count: int
     date: str
     stream: str
+
+
+class RecognitionRecord(BaseModel):
+    """Pydantic model for recognition records."""
+    id: int
+    stream_id: int
+    stream_name: str
+    provider: str
+    recognized_at_utc: datetime
+    recognized_at_pt: str = Field(..., description="Pacific Time formatted string")
+    window_start_utc: Optional[datetime]
+    window_end_utc: Optional[datetime]
+    track_id: Optional[int]
+    title: Optional[str]
+    artist: Optional[str]
+    confidence: Optional[float]
+    latency_ms: Optional[int]
+    error_message: Optional[str]
+    has_raw_response: bool = Field(..., description="Whether raw JSON response is available")
+
+
+class RecognitionsResponse(BaseModel):
+    """Response model for recognitions API."""
+    recognitions: List[RecognitionRecord]
+    total_count: int
+    stream: Optional[str]
+    provider: Optional[str]
 
 
 def convert_utc_to_pt(utc_dt: datetime) -> str:
@@ -195,6 +224,137 @@ def generate_csv_response(plays: List[PlayRecord], target_date: date, stream: st
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
+@router.get("/diagnostics", response_class=HTMLResponse)
+async def diagnostics_view(request: Request):
+    """Diagnostics view - showing recent recognitions."""
+    config: Config = request.app.state.config
+    templates = request.app.state.templates
+    
+    # Get available streams from config
+    streams = []
+    for i in range(1, config.stream_count + 1):
+        stream_config = getattr(config, f"stream_{i}", None)
+        if stream_config and stream_config.enabled:
+            streams.append(stream_config.name)
+    
+    return templates.TemplateResponse(
+        request,
+        "diagnostics.html",
+        {
+            "streams": streams,
+        }
+    )
+
+
+@router.get("/api/recognitions", response_model=RecognitionsResponse)
+async def get_recognitions(
+    request: Request,
+    limit: int = Query(100, ge=1, le=1000, description="Number of records to return"),
+    stream: Optional[str] = Query(None, description="Stream name filter"),
+    provider: Optional[str] = Query(None, description="Provider filter"),
+):
+    """Get recent recognition records."""
+    config: Config = request.app.state.config
+    
+    # Validate stream name if provided
+    if stream:
+        valid_streams = []
+        for i in range(1, config.stream_count + 1):
+            stream_config = getattr(config, f"stream_{i}", None)
+            if stream_config and stream_config.enabled:
+                valid_streams.append(stream_config.name)
+        
+        if stream not in valid_streams:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid stream '{stream}'. Valid streams: {valid_streams}"
+            )
+    
+    # Validate provider if provided
+    if provider and provider not in ["shazam", "acoustid"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid provider '{provider}'. Valid providers: shazam, acoustid"
+        )
+    
+    # Query recognitions from database
+    recognition_repo = RecognitionRepository(config.db_path)
+    recognitions_data = await recognition_repo.get_recent_recognitions(
+        limit=limit,
+        stream_name=stream,
+        provider=provider
+    )
+    
+    # Convert to RecognitionRecord models with PT time conversion
+    recognition_records = []
+    for rec_data in recognitions_data:
+        # Parse datetime strings back to datetime objects
+        recognized_at_utc = datetime.fromisoformat(rec_data["recognized_at_utc"].replace("Z", "+00:00"))
+        window_start_utc = None
+        window_end_utc = None
+        
+        if rec_data.get("window_start_utc"):
+            window_start_utc = datetime.fromisoformat(rec_data["window_start_utc"].replace("Z", "+00:00"))
+        if rec_data.get("window_end_utc"):
+            window_end_utc = datetime.fromisoformat(rec_data["window_end_utc"].replace("Z", "+00:00"))
+        
+        recognition_record = RecognitionRecord(
+            id=rec_data["id"],
+            stream_id=rec_data["stream_id"],
+            stream_name=rec_data["stream_name"],
+            provider=rec_data["provider"],
+            recognized_at_utc=recognized_at_utc,
+            recognized_at_pt=convert_utc_to_pt(recognized_at_utc),
+            window_start_utc=window_start_utc,
+            window_end_utc=window_end_utc,
+            track_id=rec_data.get("track_id"),
+            title=rec_data.get("title"),
+            artist=rec_data.get("artist"),
+            confidence=rec_data.get("confidence"),
+            latency_ms=rec_data.get("latency_ms"),
+            error_message=rec_data.get("error_message"),
+            has_raw_response=rec_data.get("raw_response") is not None,
+        )
+        recognition_records.append(recognition_record)
+    
+    return RecognitionsResponse(
+        recognitions=recognition_records,
+        total_count=len(recognition_records),
+        stream=stream,
+        provider=provider,
+    )
+
+
+@router.get("/api/recognitions/{recognition_id}/raw")
+async def get_recognition_raw(
+    request: Request,
+    recognition_id: int,
+):
+    """Get raw JSON response for a recognition record."""
+    config: Config = request.app.state.config
+    
+    async with aiosqlite.connect(config.db_path) as db:
+        cursor = await db.execute(
+            "SELECT raw_response FROM recognitions WHERE id = ?",
+            (recognition_id,)
+        )
+        row = await cursor.fetchone()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Recognition not found")
+        
+        raw_response = row[0]
+        if not raw_response:
+            raise HTTPException(status_code=404, detail="No raw response available for this recognition")
+        
+        try:
+            import json
+            parsed_response = json.loads(raw_response)
+            return parsed_response
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=500, detail="Invalid JSON in raw response")
 
 
 @router.post("/internal/reload")

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTSP Music Tagger - Diagnostics</title>
+    <!-- Bootstrap CSS via CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .status-badge {
+            font-size: 0.75em;
+        }
+        .loading-spinner {
+            display: none;
+        }
+        .table td {
+            vertical-align: middle;
+        }
+        .filter-controls {
+            max-width: 150px;
+        }
+        .latency-good {
+            color: #198754;
+        }
+        .latency-ok {
+            color: #fd7e14;
+        }
+        .latency-slow {
+            color: #dc3545;
+        }
+        .error-message {
+            font-family: monospace;
+            font-size: 0.85em;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .raw-json-link {
+            cursor: pointer;
+        }
+        .provider-shazam {
+            background-color: #0066cc;
+        }
+        .provider-acoustid {
+            background-color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-music-note-beamed"></i>
+                RTSP Music Tagger
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">Day View</a>
+                <a class="nav-link" href="/search">Search</a>
+                <a class="nav-link active" href="/diagnostics">Diagnostics</a>
+                <a class="nav-link" href="/clusters">Clusters</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">
+                    <i class="bi bi-gear"></i>
+                    Diagnostics
+                </h1>
+                
+                <!-- Filters -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <form id="filterForm" class="row g-3 align-items-end">
+                            <div class="col-md-3">
+                                <label for="limitSelect" class="form-label">Show Records</label>
+                                <select class="form-select" id="limitSelect">
+                                    <option value="50">Last 50</option>
+                                    <option value="100" selected>Last 100</option>
+                                    <option value="200">Last 200</option>
+                                    <option value="500">Last 500</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="streamSelect" class="form-label">Stream</label>
+                                <select class="form-select" id="streamSelect">
+                                    <option value="">All Streams</option>
+                                    {% for stream in streams %}
+                                    <option value="{{ stream }}">{{ stream }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="providerSelect" class="form-label">Provider</label>
+                                <select class="form-select" id="providerSelect">
+                                    <option value="">All Providers</option>
+                                    <option value="shazam">Shazam</option>
+                                    <option value="acoustid">AcoustID</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                    Refresh
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <span id="resultsTitle">Recent Recognitions</span>
+                            <span class="badge bg-secondary" id="resultsCount">0</span>
+                        </h5>
+                        <div>
+                            <button class="btn btn-outline-secondary btn-sm" id="autoRefresh" data-auto="false">
+                                <i class="bi bi-arrow-repeat"></i>
+                                Auto Refresh: OFF
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Loading indicator -->
+                        <div class="text-center py-4 loading-spinner" id="loadingSpinner">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading recognitions...</p>
+                        </div>
+
+                        <!-- No results message -->
+                        <div class="text-center py-5 d-none" id="noResults">
+                            <i class="bi bi-search text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-3">No recognitions found with the current filters.</p>
+                        </div>
+
+                        <!-- Results table -->
+                        <div class="table-responsive d-none" id="resultsTable">
+                            <table class="table table-hover table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Time (PT)</th>
+                                        <th>Provider</th>
+                                        <th>Stream</th>
+                                        <th>Status</th>
+                                        <th>Track</th>
+                                        <th>Confidence</th>
+                                        <th>Latency</th>
+                                        <th>Raw JSON</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recognitionsTableBody">
+                                    <!-- Recognitions will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Raw JSON Modal -->
+    <div class="modal fade" id="rawJsonModal" tabindex="-1" aria-labelledby="rawJsonModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="rawJsonModalLabel">Raw Recognition Response</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <pre id="rawJsonContent" class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;"></pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // State management
+        let currentRecognitions = [];
+        let autoRefreshInterval = null;
+        
+        // DOM elements
+        const filterForm = document.getElementById('filterForm');
+        const limitSelect = document.getElementById('limitSelect');
+        const streamSelect = document.getElementById('streamSelect');
+        const providerSelect = document.getElementById('providerSelect');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const noResults = document.getElementById('noResults');
+        const resultsTable = document.getElementById('resultsTable');
+        const resultsTitle = document.getElementById('resultsTitle');
+        const resultsCount = document.getElementById('resultsCount');
+        const recognitionsTableBody = document.getElementById('recognitionsTableBody');
+        const autoRefreshBtn = document.getElementById('autoRefresh');
+        const rawJsonModal = new bootstrap.Modal(document.getElementById('rawJsonModal'));
+        const rawJsonContent = document.getElementById('rawJsonContent');
+
+        // Event listeners
+        filterForm.addEventListener('submit', handleFormSubmit);
+        autoRefreshBtn.addEventListener('click', toggleAutoRefresh);
+
+        // Initialize with data
+        document.addEventListener('DOMContentLoaded', () => {
+            loadRecognitions();
+        });
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            loadRecognitions();
+        }
+
+        async function loadRecognitions() {
+            const limit = limitSelect.value;
+            const stream = streamSelect.value;
+            const provider = providerSelect.value;
+
+            showLoading();
+
+            try {
+                const params = new URLSearchParams();
+                params.append('limit', limit);
+                if (stream) params.append('stream', stream);
+                if (provider) params.append('provider', provider);
+
+                const response = await fetch(`/api/recognitions?${params}`);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to load recognitions');
+                }
+
+                const data = await response.json();
+                currentRecognitions = data.recognitions;
+                displayRecognitions(data);
+
+            } catch (error) {
+                console.error('Error loading recognitions:', error);
+                alert(`Error loading recognitions: ${error.message}`);
+                showNoResults();
+            }
+        }
+
+        function showLoading() {
+            loadingSpinner.style.display = 'block';
+            noResults.classList.add('d-none');
+            resultsTable.classList.add('d-none');
+        }
+
+        function showNoResults() {
+            loadingSpinner.style.display = 'none';
+            noResults.classList.remove('d-none');
+            resultsTable.classList.add('d-none');
+            resultsCount.textContent = '0';
+        }
+
+        function displayRecognitions(data) {
+            loadingSpinner.style.display = 'none';
+            
+            if (data.recognitions.length === 0) {
+                showNoResults();
+                return;
+            }
+
+            // Update title and count
+            resultsTitle.textContent = 'Recent Recognitions';
+            resultsCount.textContent = data.total_count;
+
+            // Clear and populate table
+            recognitionsTableBody.innerHTML = '';
+            
+            data.recognitions.forEach(recognition => {
+                const row = createRecognitionRow(recognition);
+                recognitionsTableBody.appendChild(row);
+            });
+
+            // Show results
+            noResults.classList.add('d-none');
+            resultsTable.classList.remove('d-none');
+        }
+
+        function createRecognitionRow(recognition) {
+            const row = document.createElement('tr');
+            
+            // Determine status
+            const hasError = recognition.error_message !== null;
+            const hasTrack = recognition.track_id !== null;
+            let statusHtml, statusClass;
+            
+            if (hasError) {
+                statusHtml = '<i class="bi bi-x-circle"></i> Error';
+                statusClass = 'danger';
+            } else if (hasTrack) {
+                statusHtml = '<i class="bi bi-check-circle"></i> Match';
+                statusClass = 'success';
+            } else {
+                statusHtml = '<i class="bi bi-dash-circle"></i> No Match';
+                statusClass = 'warning';
+            }
+
+            // Format confidence
+            const confidenceText = recognition.confidence !== null ? 
+                `${(recognition.confidence * 100).toFixed(1)}%` : 'N/A';
+            const confidenceClass = recognition.confidence !== null ?
+                (recognition.confidence >= 0.8 ? 'success' : recognition.confidence >= 0.5 ? 'warning' : 'danger') :
+                'secondary';
+
+            // Format latency
+            let latencyText = 'N/A';
+            let latencyClass = '';
+            if (recognition.latency_ms !== null) {
+                latencyText = `${recognition.latency_ms}ms`;
+                if (recognition.latency_ms < 2000) {
+                    latencyClass = 'latency-good';
+                } else if (recognition.latency_ms < 5000) {
+                    latencyClass = 'latency-ok';
+                } else {
+                    latencyClass = 'latency-slow';
+                }
+            }
+
+            // Format track info
+            let trackHtml = 'N/A';
+            if (hasError) {
+                trackHtml = `<span class="error-message text-danger" title="${escapeHtml(recognition.error_message)}">${escapeHtml(recognition.error_message)}</span>`;
+            } else if (hasTrack && recognition.title && recognition.artist) {
+                trackHtml = `
+                    <div>
+                        <div class="fw-bold">${escapeHtml(recognition.title)}</div>
+                        <div class="text-muted small">${escapeHtml(recognition.artist)}</div>
+                    </div>
+                `;
+            }
+
+            row.innerHTML = `
+                <td class="fw-bold">${recognition.recognized_at_pt}</td>
+                <td>
+                    <span class="badge provider-${recognition.provider}">${recognition.provider}</span>
+                </td>
+                <td>
+                    <span class="badge bg-info">${escapeHtml(recognition.stream_name)}</span>
+                </td>
+                <td>
+                    <span class="badge bg-${statusClass} status-badge">${statusHtml}</span>
+                </td>
+                <td>${trackHtml}</td>
+                <td>
+                    <span class="badge bg-${confidenceClass} status-badge">${confidenceText}</span>
+                </td>
+                <td>
+                    <span class="${latencyClass}">${latencyText}</span>
+                </td>
+                <td>
+                    ${recognition.has_raw_response ? 
+                        `<button class="btn btn-outline-secondary btn-sm raw-json-link" onclick="showRawJson(${recognition.id})">
+                            <i class="bi bi-code"></i> View
+                        </button>` : 
+                        '<span class="text-muted">N/A</span>'
+                    }
+                </td>
+            `;
+            
+            return row;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function showRawJson(recognitionId) {
+            try {
+                const response = await fetch(`/api/recognitions/${recognitionId}/raw`);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to load raw JSON');
+                }
+
+                const data = await response.json();
+                rawJsonContent.textContent = JSON.stringify(data, null, 2);
+                rawJsonModal.show();
+
+            } catch (error) {
+                console.error('Error loading raw JSON:', error);
+                alert(`Error loading raw JSON: ${error.message}`);
+            }
+        }
+
+        function toggleAutoRefresh() {
+            const isAuto = autoRefreshBtn.dataset.auto === 'true';
+            
+            if (isAuto) {
+                // Turn off auto refresh
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+                autoRefreshBtn.dataset.auto = 'false';
+                autoRefreshBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Auto Refresh: OFF';
+                autoRefreshBtn.classList.remove('btn-success');
+                autoRefreshBtn.classList.add('btn-outline-secondary');
+            } else {
+                // Turn on auto refresh (every 10 seconds)
+                autoRefreshInterval = setInterval(() => {
+                    loadRecognitions();
+                }, 10000);
+                autoRefreshBtn.dataset.auto = 'true';
+                autoRefreshBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Auto Refresh: ON';
+                autoRefreshBtn.classList.remove('btn-outline-secondary');
+                autoRefreshBtn.classList.add('btn-success');
+            }
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+        });
+    </script>
+</body>
+</html>

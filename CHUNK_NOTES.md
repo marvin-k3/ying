@@ -197,6 +197,43 @@ ying/
     - Error path testing for invalid dates, streams, and failures
     - Configuration reload testing with worker manager integration
 
+### M8 - Diagnostics ✅
+- **Status**: Complete with 100% test coverage
+- **Files**:
+  - `app/web/routes.py` - Added diagnostics routes and models
+  - `app/web/templates/diagnostics.html` - Bootstrap UI for diagnostics
+  - `tests/unit/test_web_diagnostics.py` - Comprehensive test suite
+- **Features**:
+  - **Diagnostics Dashboard**: Complete web interface for viewing recognition data
+    - `/diagnostics` route with responsive Bootstrap UI
+    - Real-time recognition status monitoring with auto-refresh
+    - Recent recognitions table with status, latency, and raw JSON access
+    - Stream and provider filtering with validation
+    - Mobile-responsive design with color-coded status indicators
+  - **Recognitions API**: Comprehensive data endpoint with filtering
+    - `/api/recognitions` endpoint with limit, stream, and provider filters
+    - Pacific Time conversion for display consistency
+    - Proper error handling and validation for all parameters
+    - Support for 1-1000 record limits with sensible defaults
+    - Status detection (success/no match/error) based on data
+  - **Raw JSON Viewer**: Modal interface for detailed inspection
+    - `/api/recognitions/{id}/raw` endpoint for raw provider responses
+    - Bootstrap modal with JSON syntax highlighting
+    - Proper error handling for missing or malformed data
+    - Direct links from diagnostics table for easy access
+  - **Modern UI Features**: Production-ready interface elements
+    - Auto-refresh toggle for real-time monitoring (10-second intervals)
+    - Provider badges with distinct colors (Shazam blue, AcoustID gray)
+    - Latency indicators with color coding (good/ok/slow)
+    - Error message tooltips and truncation for readability
+    - Confidence score badges with severity-based colors
+  - **Testing Infrastructure**: 100% test coverage with 20 test cases
+    - Complete route testing with mocked dependencies
+    - Error path testing for all validation scenarios
+    - Database integration testing with mock data
+    - Response model validation and datetime handling
+    - HTML template rendering verification
+
 ## Next Milestones
 
 ### M3 - FFmpeg Runner ✅
@@ -274,7 +311,7 @@ rye run dev
 ```
 
 ## Test Coverage
-- **Total Coverage**: 90.94% (218 tests passed, 8 skipped)
+- **Total Coverage**: 91.43% (238 tests passed, 8 skipped)
 - **Config Module**: 92% (104/113 lines covered)
 - **Migration Module**: 82% (55/67 lines covered)
 - **Repository Module**: 80% (74/93 lines covered)
@@ -288,7 +325,7 @@ rye run dev
 - **Recognizers Base Module**: 70% (30/43 lines covered)
 - **Shazamio Recognizer Module**: 98% (87/89 lines covered)
 - **AcoustID Recognizer Module**: 88% (121/137 lines covered)
-- **Web Routes Module**: 100% (98/98 lines covered)
+- **Web Routes Module**: 100% (175/175 lines covered)
 - **Worker Module**: 88% (139/158 lines covered)
 
 All tests pass with comprehensive validation of all implemented functionality.
