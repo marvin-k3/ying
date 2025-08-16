@@ -66,7 +66,7 @@ class TestMetricsMiddleware:
 
         # Make request (should raise exception)
         try:
-            response = client.get("/error")
+            client.get("/error")
         except Exception:
             # Expected to fail
             pass
@@ -155,8 +155,6 @@ class TestMetricsMiddleware:
         client = TestClient(app)
 
         # Mock the trace context manager
-        mock_context = mock_trace_web_request.return_value.__enter__.return_value
-
         # Make request
         response = client.get("/test")
         assert response.status_code == 200

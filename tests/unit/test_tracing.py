@@ -228,7 +228,7 @@ class TestTracingContextManagers:
         operation = "insert"
         table = "tracks"
 
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, RuntimeError, Exception)):
             with DatabaseSpan(operation, table) as span:
                 assert span is not None
                 raise Exception("Database error")

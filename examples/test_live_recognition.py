@@ -51,7 +51,7 @@ async def recognize_audio_file(audio_path: Path):
         # Process results
         providers = ["Shazam"] + (["AcoustID"] if acoustid else [])
 
-        for i, (provider, result) in enumerate(zip(providers, results, strict=False)):
+        for _i, (provider, result) in enumerate(zip(providers, results, strict=False)):
             print(f"\n{'=' * 20} {provider} Results {'=' * 20}")
 
             if isinstance(result, Exception):

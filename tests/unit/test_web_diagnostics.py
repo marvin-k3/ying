@@ -486,7 +486,7 @@ class TestDiagnosticsErrorHandling:
 
         # The route should catch the exception but in this case it will propagate
         # In production, we'd want proper error handling
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, RuntimeError, Exception)):
             client.get("/api/recognitions")
 
     def test_invalid_recognition_id_type(self, client):

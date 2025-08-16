@@ -130,10 +130,10 @@ async def get_plays(
     # Parse and validate date
     try:
         target_date = datetime.strptime(date, "%Y-%m-%d").date()
-    except ValueError:
+    except ValueError as e:
         raise HTTPException(
             status_code=400, detail="Invalid date format. Use YYYY-MM-DD."
-        )
+        ) from e
 
     # Validate stream name
     stream_filter = None if stream == "all" else stream
@@ -370,8 +370,8 @@ async def get_recognition_raw(
 
             parsed_response = json.loads(raw_response)
             return parsed_response
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=500, detail="Invalid JSON in raw response")
+        except json.JSONDecodeError as e:
+            raise HTTPException(status_code=500, detail="Invalid JSON in raw response") from e
 
 
 @router.post("/internal/reload")
@@ -399,4 +399,4 @@ async def reload_config(request: Request):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to reload configuration: {str(e)}"
-        )
+        ) from e

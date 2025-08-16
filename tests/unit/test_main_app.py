@@ -26,8 +26,6 @@ class TestCreateApp:
         app = create_app()
 
         # Check that routes are included
-        route_paths = [route.path for route in app.routes]
-
         # Basic endpoints
         assert "/healthz" in [
             route.path for route in app.routes if hasattr(route, "path")

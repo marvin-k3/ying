@@ -297,7 +297,7 @@ class TestRecognitionQueue:
                     processed.append((stream_id, task_info["id"], result))
 
         # Verify fairness - each stream should have processed some tasks
-        streams_processed = set(stream_id for stream_id, _, _ in processed)
+        streams_processed = {stream_id for stream_id, _, _ in processed}
         assert len(streams_processed) == 3  # All streams got some processing
         assert all(result.is_success for _, _, result in processed)
 

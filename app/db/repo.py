@@ -58,8 +58,8 @@ class TrackRepository:
                 track_id = existing[0]
                 await db.execute(
                     """
-                    UPDATE tracks 
-                    SET title = ?, artist = ?, album = ?, isrc = ?, 
+                    UPDATE tracks
+                    SET title = ?, artist = ?, album = ?, isrc = ?,
                         artwork_url = ?, metadata = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
                 """,
@@ -80,7 +80,7 @@ class TrackRepository:
                 cursor = await db.execute(
                     """
                     INSERT INTO tracks (
-                        provider, provider_track_id, title, artist, album, 
+                        provider, provider_track_id, title, artist, album,
                         isrc, artwork_url, metadata
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -313,8 +313,8 @@ class RecognitionRepository:
             cursor = await db.execute(
                 """
                 INSERT INTO recognitions (
-                    stream_id, provider, recognized_at_utc, window_start_utc, 
-                    window_end_utc, track_id, confidence, latency_ms, 
+                    stream_id, provider, recognized_at_utc, window_start_utc,
+                    window_end_utc, track_id, confidence, latency_ms,
                     raw_response, error_message
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
@@ -377,8 +377,8 @@ class RecognitionRepository:
             cursor = await db.execute(
                 """
                 INSERT INTO recognitions (
-                    stream_id, provider, recognized_at_utc, window_start_utc, 
-                    window_end_utc, track_id, confidence, latency_ms, 
+                    stream_id, provider, recognized_at_utc, window_start_utc,
+                    window_end_utc, track_id, confidence, latency_ms,
                     raw_response, error_message
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,

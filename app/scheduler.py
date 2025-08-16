@@ -275,7 +275,7 @@ class TwoHitAggregator:
         """
         max_age_seconds = (self.tolerance_hops + 1) * self.hop_seconds
 
-        for stream_name, stream_hits in self.pending_hits.items():
+        for _stream_name, stream_hits in self.pending_hits.items():
             expired_keys = [
                 key
                 for key, hit in stream_hits.items()
