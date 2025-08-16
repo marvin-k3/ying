@@ -74,7 +74,7 @@ class TrackRepository:
                     ),
                 )
                 await db.commit()
-                return track_id
+                return int(track_id)
             else:
                 # Insert new track
                 cursor = await db.execute(
@@ -96,6 +96,8 @@ class TrackRepository:
                     ),
                 )
                 await db.commit()
+                if cursor.lastrowid is None:
+                    raise RuntimeError("Failed to insert track - no ID returned")
                 return cursor.lastrowid
 
     async def get_track_by_provider_id(
@@ -193,6 +195,8 @@ class PlayRepository:
                 ),
             )
             await db.commit()
+            if cursor.lastrowid is None:
+                raise RuntimeError("Failed to insert play - no ID returned")
             return cursor.lastrowid
 
     async def get_plays_by_date(
@@ -269,7 +273,7 @@ class RecognitionRepository:
             row = await cursor.fetchone()
 
             if row:
-                return row[0]
+                return int(row[0])
 
             # Create new stream
             cursor = await db.execute(
@@ -277,6 +281,8 @@ class RecognitionRepository:
                 (stream_name, f"rtsp://placeholder/{stream_name}", True),
             )
             await db.commit()
+            if cursor.lastrowid is None:
+                raise RuntimeError("Failed to insert stream - no ID returned")
             return cursor.lastrowid
 
     async def insert_recognition(
@@ -332,6 +338,8 @@ class RecognitionRepository:
                 ),
             )
             await db.commit()
+            if cursor.lastrowid is None:
+                raise RuntimeError("Failed to insert recognition - no ID returned")
             return cursor.lastrowid
 
     async def insert_recognition_by_name(
@@ -396,6 +404,8 @@ class RecognitionRepository:
                 ),
             )
             await db.commit()
+            if cursor.lastrowid is None:
+                raise RuntimeError("Failed to insert recognition - no ID returned")
             return cursor.lastrowid
 
     async def get_recent_recognitions(
@@ -425,7 +435,7 @@ class RecognitionRepository:
                 LEFT JOIN tracks t ON r.track_id = t.id
                 WHERE 1=1
             """
-            params = []
+            params: list[str | int] = []
 
             if stream_name:
                 query += " AND s.name = ?"

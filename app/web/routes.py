@@ -3,9 +3,11 @@
 import csv
 import io
 from datetime import date, datetime
+from pathlib import Path
+from typing import Any
 
 import aiosqlite
-import pytz
+import pytz  # type: ignore[import-untyped]
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
@@ -92,7 +94,7 @@ def get_pt_date_today() -> date:
 
 
 @router.get("/", response_class=HTMLResponse)
-async def day_view(request: Request):
+async def day_view(request: Request) -> HTMLResponse:
     """Day view - main page showing plays for a date."""
     config: Config = request.app.state.config
     templates = request.app.state.templates
@@ -107,7 +109,7 @@ async def day_view(request: Request):
         if stream_config and stream_config.enabled:
             streams.append(stream_config.name)
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "day_view.html",
         {
@@ -115,6 +117,7 @@ async def day_view(request: Request):
             "streams": streams,
         },
     )
+    return response  # type: ignore[no-any-return]
 
 
 @router.get("/api/plays", response_model=PlaysResponse)
@@ -123,7 +126,7 @@ async def get_plays(
     date: str = Query(..., description="Date in YYYY-MM-DD format"),
     stream: str = Query("all", description="Stream name or 'all'"),
     format: str = Query("json", description="Response format: 'json' or 'csv'"),
-):
+) -> PlaysResponse | Response:
     """Get plays for a specific date and stream."""
     config: Config = request.app.state.config
 
@@ -152,7 +155,7 @@ async def get_plays(
             )
 
     # Query plays from database
-    play_repo = PlayRepository(config.db_path)
+    play_repo = PlayRepository(Path(config.db_path))
     plays_data = await play_repo.get_plays_by_date(target_date, stream_filter)
 
     # Convert to PlayRecord models with PT time conversion
@@ -238,7 +241,7 @@ def generate_csv_response(
 
 
 @router.get("/diagnostics", response_class=HTMLResponse)
-async def diagnostics_view(request: Request):
+async def diagnostics_view(request: Request) -> HTMLResponse:
     """Diagnostics view - showing recent recognitions."""
     config: Config = request.app.state.config
     templates = request.app.state.templates
@@ -250,13 +253,14 @@ async def diagnostics_view(request: Request):
         if stream_config and stream_config.enabled:
             streams.append(stream_config.name)
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "diagnostics.html",
         {
             "streams": streams,
         },
     )
+    return response  # type: ignore[no-any-return]
 
 
 @router.get("/api/recognitions", response_model=RecognitionsResponse)
@@ -265,7 +269,7 @@ async def get_recognitions(
     limit: int = Query(100, ge=1, le=1000, description="Number of records to return"),
     stream: str | None = Query(None, description="Stream name filter"),
     provider: str | None = Query(None, description="Provider filter"),
-):
+) -> RecognitionsResponse:
     """Get recent recognition records."""
     config: Config = request.app.state.config
 
@@ -291,7 +295,7 @@ async def get_recognitions(
         )
 
     # Query recognitions from database
-    recognition_repo = RecognitionRepository(config.db_path)
+    recognition_repo = RecognitionRepository(Path(config.db_path))
     recognitions_data = await recognition_repo.get_recent_recognitions(
         limit=limit, stream_name=stream, provider=provider
     )
@@ -346,7 +350,7 @@ async def get_recognitions(
 async def get_recognition_raw(
     request: Request,
     recognition_id: int,
-):
+) -> dict[str, Any]:
     """Get raw JSON response for a recognition record."""
     config: Config = request.app.state.config
 
@@ -368,20 +372,20 @@ async def get_recognition_raw(
         try:
             import json
 
-            parsed_response = json.loads(raw_response)
+            parsed_response: dict[str, Any] = json.loads(raw_response)
             return parsed_response
         except json.JSONDecodeError as e:
             raise HTTPException(status_code=500, detail="Invalid JSON in raw response") from e
 
 
 @router.post("/internal/reload")
-async def reload_config(request: Request):
+async def reload_config(request: Request) -> dict[str, str]:
     """Reload configuration and restart workers."""
     worker_manager: WorkerManager = request.app.state.worker_manager
 
     try:
         # Stop current workers
-        await worker_manager.stop()
+        await worker_manager.stop_all()
 
         # Reload config
         new_config = Config()
@@ -389,7 +393,7 @@ async def reload_config(request: Request):
 
         # Start workers with new config
         worker_manager.config = new_config
-        await worker_manager.start()
+        await worker_manager.start_all()
 
         return {
             "status": "reloaded",

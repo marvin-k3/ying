@@ -24,7 +24,7 @@ class MetricsMiddleware(BaseHTTPMiddleware):
                 method=request.method,
                 endpoint=request.url.path,
             ):
-                response = await call_next(request)
+                response: Response = await call_next(request)
                 status_code = response.status_code
         except Exception:
             # Record metrics for failed requests

@@ -299,14 +299,14 @@ class TestWebRoutes:
             assert "restarted" in data["message"]
 
             # Verify worker manager methods were called
-            mock_worker_manager.stop.assert_called_once()
-            mock_worker_manager.start.assert_called_once()
+            mock_worker_manager.stop_all.assert_called_once()
+            mock_worker_manager.start_all.assert_called_once()
 
     async def test_reload_config_failure(self, test_client: TestClient) -> None:
         """Test config reload failure."""
         # Mock worker manager that fails on stop
         mock_worker_manager = AsyncMock()
-        mock_worker_manager.stop.side_effect = Exception("Stop failed")
+        mock_worker_manager.stop_all.side_effect = Exception("Stop failed")
         test_client.app.state.worker_manager = mock_worker_manager
 
         response = test_client.post("/internal/reload")

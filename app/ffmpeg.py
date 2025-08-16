@@ -53,7 +53,8 @@ class FFmpegRunner(ABC):
     @abstractmethod
     async def read_audio_data(self) -> AsyncGenerator[bytes, None]:
         """Read audio data from FFmpeg stdout."""
-        pass
+        yield b""  # Never reached
+        ...
 
     def _build_ffmpeg_args(self) -> list[str]:
         """Build FFmpeg command line arguments."""
@@ -85,7 +86,7 @@ class FFmpegRunner(ABC):
             return 0.0
 
         backoff = self.config.restart_backoff_seconds * (2 ** (self.restart_count - 1))
-        return min(backoff, self.config.max_backoff_seconds)
+        return float(min(backoff, self.config.max_backoff_seconds))
 
     async def _wait_for_backoff(self) -> None:
         """Wait for backoff delay if needed."""

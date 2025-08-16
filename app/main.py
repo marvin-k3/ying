@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
 
     # Run migrations
-    migration_manager = MigrationManager(config.db_path)
+    migration_manager = MigrationManager(Path(config.db_path))
     await migration_manager.migrate_all()
 
     # Start worker manager
@@ -89,17 +89,17 @@ def create_app() -> FastAPI:
 
     # Add basic endpoints
     @app.get("/healthz")
-    async def health_check():
+    async def health_check() -> dict[str, str]:
         """Health check endpoint."""
         return {"status": "healthy", "service": "rtsp-music-tagger"}
 
     @app.get("/metrics")
-    async def metrics():
+    async def metrics() -> bytes:
         """Prometheus metrics endpoint."""
         return get_metrics()
 
     @app.get("/metrics/openmetrics")
-    async def metrics_openmetrics():
+    async def metrics_openmetrics() -> bytes:
         """OpenMetrics format metrics endpoint."""
         return get_metrics_openmetrics()
 
@@ -110,7 +110,7 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-def signal_handler(signum: int, frame) -> None:
+def signal_handler(signum: int, frame: object) -> None:
     """Handle shutdown signals."""
     print(f"Received signal {signum}, shutting down...")
     sys.exit(0)

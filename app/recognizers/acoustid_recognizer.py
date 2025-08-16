@@ -147,12 +147,12 @@ class AcoustIDRecognizer(MusicRecognizer):
                 result = json.loads(stdout.decode())
                 fingerprint = result.get("fingerprint")
 
-                if not fingerprint:
+                if not fingerprint or not isinstance(fingerprint, str):
                     logger.error("fpcalc returned no fingerprint")
                     return None
 
                 logger.debug(f"Generated fingerprint: {fingerprint[:50]}...")
-                return fingerprint
+                return str(fingerprint)
 
             finally:
                 # Clean up temporary file
@@ -187,7 +187,7 @@ class AcoustIDRecognizer(MusicRecognizer):
 
         # Make API request
         async with session.post(url, data=data) as response:
-            response_data = await response.json()
+            response_data: dict[str, Any] = await response.json()
 
             logger.debug(f"AcoustID response status: {response.status}")
 

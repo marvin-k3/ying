@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from shazamio import Shazam
+from shazamio import Shazam  # type: ignore[import-untyped]
 
 from .base import MusicRecognizer, RecognitionResult
 

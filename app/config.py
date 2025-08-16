@@ -133,7 +133,6 @@ class Config(BaseSettings):
         return v.lower()
 
     @computed_field
-    @property
     def enabled_streams(self) -> list[StreamConfig]:
         """Get only enabled streams."""
         return [stream for stream in self.streams if stream.enabled]
@@ -168,13 +167,7 @@ class Config(BaseSettings):
 
     def _parse_boolean(self, value: str) -> bool:
         """Parse boolean from string."""
-        if isinstance(value, bool):
-            return value
-
-        if isinstance(value, str):
-            return value.lower() in ("true", "1", "yes", "on")
-
-        return False
+        return value.lower() in ("true", "1", "yes", "on")
 
     model_config = {
         "env_file": ".env",

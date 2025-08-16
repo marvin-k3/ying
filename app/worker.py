@@ -10,7 +10,7 @@ from .ffmpeg import FFmpegRunner, RealFFmpegRunner
 from .recognizers.acoustid_recognizer import AcoustIDRecognizer
 from .recognizers.base import MusicRecognizer, RecognitionResult
 from .recognizers.shazamio_recognizer import ShazamioRecognizer
-from .scheduler import Clock, RealClock, TwoHitAggregator, WindowScheduler
+from .scheduler import AudioWindow, Clock, RealClock, TwoHitAggregator, WindowScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class ParallelRecognizers:
             tasks.append(task)
 
         # Wait for all to complete and gather results
-        results = []
+        results: list[RecognitionResult] = []
         completed_tasks = await asyncio.gather(*tasks, return_exceptions=True)
 
         for i, result in enumerate(completed_tasks):
@@ -70,7 +70,7 @@ class ParallelRecognizers:
                 logger.warning(
                     f"Recognition failed for provider {provider_name}: {result}"
                 )
-            elif result is not None:
+            elif result is not None and isinstance(result, RecognitionResult):
                 results.append(result)
 
         return results
@@ -223,13 +223,13 @@ class StreamWorker:
             await self.ffmpeg_runner.start()
 
             # Process audio windows
-            async for window_bytes in self.window_scheduler.schedule_windows(
+            async for window in self.window_scheduler.schedule_windows(
                 self.ffmpeg_runner.read_audio_data()
             ):
                 if not self._running:
                     break
 
-                await self._process_window(window_bytes)
+                await self._process_window(window.wav_bytes)
 
         except Exception as e:
             logger.error(f"Worker error for stream {self.stream_config.name}: {e}")
@@ -272,9 +272,13 @@ class StreamWorker:
             )
 
         # Check for play confirmations (two-hit logic)
-        confirmed_plays = self.two_hit_aggregator.add_recognitions(
-            window_timestamp, recognition_results
-        )
+        confirmed_plays = []
+        for result in recognition_results:
+            confirmed_result = self.two_hit_aggregator.process_recognition(
+                self.stream_config.name, result
+            )
+            if confirmed_result:
+                confirmed_plays.append(confirmed_result)
 
         # Insert confirmed plays
         for result in confirmed_plays:
@@ -290,12 +294,17 @@ class StreamWorker:
                 metadata=result.raw_response,
             )
 
+            # Get stream_id and calculate dedup_bucket
+            stream_id = await self.recognition_repo._get_stream_id(self.stream_config.name)
+            dedup_bucket = int(result.recognized_at_utc.timestamp()) // self.config.dedup_seconds
+            
             # Then insert the play
             await self.play_repo.insert_play(
                 track_id=track_id,
-                stream_name=self.stream_config.name,
+                stream_id=stream_id,
                 recognized_at_utc=result.recognized_at_utc,
-                dedup_seconds=self.config.dedup_seconds,
+                dedup_bucket=dedup_bucket,
+                confidence=result.confidence,
             )
 
             logger.info(
@@ -347,7 +356,7 @@ class WorkerManager:
         Returns:
             Dict of provider name to recognizer instance.
         """
-        recognizers = {}
+        recognizers: dict[str, MusicRecognizer] = {}
 
         # Shazam is always enabled
         recognizers["shazam"] = ShazamioRecognizer(timeout_seconds=30.0)
