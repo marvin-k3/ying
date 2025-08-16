@@ -109,7 +109,7 @@ class RealFFmpegRunner(FFmpegRunner):
             logger.info(
                 "Starting FFmpeg process",
                 extra={
-                    "args": args,
+                    "ffmpeg_args": args,
                     "rtsp_url": self.config.rtsp_url,
                     "restart_count": self.restart_count
                 }

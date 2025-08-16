@@ -47,11 +47,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     # Run migrations
     migration_manager = MigrationManager(config.db_path)
-    await migration_manager.apply_migrations()
+    await migration_manager.migrate_all()
     
     # Start worker manager
     worker_manager = WorkerManager(config)
-    await worker_manager.start()
+    await worker_manager.start_all()
     
     # Store config in app state
     app.state.config = config
@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     # Shutdown workers
     if worker_manager:
-        await worker_manager.stop()
+        await worker_manager.stop_all()
 
 
 def create_app() -> FastAPI:
