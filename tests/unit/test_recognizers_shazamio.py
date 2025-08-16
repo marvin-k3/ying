@@ -196,8 +196,15 @@ class TestShazamioRecognizer:
         recognizer = ShazamioRecognizer()
         
         with patch("app.recognizers.shazamio_recognizer.Shazam") as mock_shazam_class:
-            mock_instance = AsyncMock()
-            mock_instance.recognize.return_value = shazam_fixtures["successful_match"]
+            # Use MagicMock to avoid AsyncMock warnings
+            mock_instance = MagicMock()
+            call_count = 0
+            # Configure the async method properly to avoid warnings
+            async def mock_recognize(data):
+                nonlocal call_count
+                call_count += 1
+                return shazam_fixtures["successful_match"]
+            mock_instance.recognize = mock_recognize
             mock_shazam_class.return_value = mock_instance
             
             # Make multiple calls
@@ -206,7 +213,7 @@ class TestShazamioRecognizer:
             
             # Verify Shazam was only instantiated once
             mock_shazam_class.assert_called_once()
-            assert mock_instance.recognize.call_count == 2
+            assert call_count == 2
 
 
 class TestFakeShazamioRecognizer:

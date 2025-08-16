@@ -31,17 +31,22 @@ class TestStartupRegressionCases:
             mock_config.otel_traces_sampler_arg = 1.0
             mock_config_class.return_value = mock_config
             
-            # Setup migration manager with WRONG method name (this is the bug)
-            mock_migration_manager = AsyncMock()
-            # Don't add migrate_all method - simulate the old wrong name
-            delattr(mock_migration_manager, 'migrate_all')
-            mock_migration_manager.apply_migrations.return_value = ["0001_init"]  # Wrong method name
+            # Setup migration manager with WRONG method name (this is the bug) 
+            # Use a minimal approach
+            class MockMigrationManager:
+                async def apply_migrations(self):
+                    return ["0001_init"]
+                # Intentionally no migrate_all method
+            mock_migration_manager = MockMigrationManager()
             mock_migration_manager_class.return_value = mock_migration_manager
             
             # Setup worker manager
-            mock_worker_manager = AsyncMock()
-            mock_worker_manager.start_all.return_value = None
-            mock_worker_manager.stop_all.return_value = None
+            class MockWorkerManager:
+                async def start_all(self):
+                    pass
+                async def stop_all(self):
+                    pass
+            mock_worker_manager = MockWorkerManager()
             mock_worker_manager_class.return_value = mock_worker_manager
             
             mock_app = MagicMock()
@@ -73,17 +78,20 @@ class TestStartupRegressionCases:
             mock_config_class.return_value = mock_config
             
             # Setup migration manager correctly
-            mock_migration_manager = AsyncMock()
-            mock_migration_manager.migrate_all.return_value = ["0001_init"]
+            class MockMigrationManager:
+                async def migrate_all(self):
+                    return ["0001_init"]
+            mock_migration_manager = MockMigrationManager()
             mock_migration_manager_class.return_value = mock_migration_manager
             
             # Setup worker manager with WRONG method names (this is the bug)
-            mock_worker_manager = AsyncMock()
-            # Don't add start_all/stop_all methods - simulate the old wrong names
-            delattr(mock_worker_manager, 'start_all')
-            delattr(mock_worker_manager, 'stop_all')
-            mock_worker_manager.start.return_value = None  # Wrong method name
-            mock_worker_manager.stop.return_value = None   # Wrong method name
+            class MockWorkerManager:
+                async def start(self):  # Wrong method name - should be start_all
+                    pass
+                async def stop(self):   # Wrong method name - should be stop_all
+                    pass
+                # Intentionally no start_all/stop_all methods
+            mock_worker_manager = MockWorkerManager()
             mock_worker_manager_class.return_value = mock_worker_manager
             
             mock_app = MagicMock()

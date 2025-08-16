@@ -229,8 +229,12 @@ class TestParallelRecognizers:
                 raw_response={"test": True}
             )
         
-        recognizer = Mock(spec=MusicRecognizer)
-        recognizer.recognize = slow_recognize
+        # Create a simple recognizer object instead of using Mock
+        class TestRecognizer:
+            async def recognize(self, wav_bytes: bytes, timeout_seconds: float) -> RecognitionResult:
+                return await slow_recognize(wav_bytes, timeout_seconds)
+        
+        recognizer = TestRecognizer()
         
         recognizers = {"test": recognizer}
         global_sem = asyncio.Semaphore(1)  # Only allow 1 concurrent
@@ -384,8 +388,20 @@ class TestWorkerManager:
         clock = FakeClock(datetime.now(timezone.utc))
         
         with patch('app.worker.RealFFmpegRunner') as mock_ffmpeg:
-            # Mock the FFmpeg runner to avoid actual processes
-            mock_instance = AsyncMock()
+            # Use MagicMock instead of AsyncMock to avoid warnings
+            mock_instance = MagicMock()
+            # Configure async methods manually
+            async def mock_start():
+                pass
+            async def mock_stop():
+                pass
+            async def mock_read_audio_data():
+                # Return an empty async generator
+                return
+                yield  # pragma: no cover
+            mock_instance.start = mock_start
+            mock_instance.stop = mock_stop
+            mock_instance.read_audio_data = mock_read_audio_data
             mock_ffmpeg.return_value = mock_instance
             
             manager = WorkerManager(config, clock)
@@ -418,7 +434,20 @@ class TestWorkerManager:
         clock = FakeClock(datetime.now(timezone.utc))
         
         with patch('app.worker.RealFFmpegRunner') as mock_ffmpeg:
-            mock_instance = AsyncMock()
+            # Use MagicMock instead of AsyncMock to avoid warnings
+            mock_instance = MagicMock()
+            # Configure async methods manually
+            async def mock_start():
+                pass
+            async def mock_stop():
+                pass
+            async def mock_read_audio_data():
+                # Return an empty async generator
+                return
+                yield  # pragma: no cover
+            mock_instance.start = mock_start
+            mock_instance.stop = mock_stop
+            mock_instance.read_audio_data = mock_read_audio_data
             mock_ffmpeg.return_value = mock_instance
             
             manager = WorkerManager(config, clock)
@@ -444,7 +473,20 @@ class TestWorkerManager:
         clock = FakeClock(datetime.now(timezone.utc))
         
         with patch('app.worker.RealFFmpegRunner') as mock_ffmpeg:
-            mock_instance = AsyncMock()
+            # Use MagicMock instead of AsyncMock to avoid warnings
+            mock_instance = MagicMock()
+            # Configure async methods manually
+            async def mock_start():
+                pass
+            async def mock_stop():
+                pass
+            async def mock_read_audio_data():
+                # Return an empty async generator
+                return
+                yield  # pragma: no cover
+            mock_instance.start = mock_start
+            mock_instance.stop = mock_stop
+            mock_instance.read_audio_data = mock_read_audio_data
             mock_ffmpeg.return_value = mock_instance
             
             manager = WorkerManager(config, clock)
@@ -485,8 +527,12 @@ class TestBackpressureAndCapacity:
                 raw_response={"slow": True}
             )
         
-        recognizer = Mock(spec=MusicRecognizer)
-        recognizer.recognize = slow_recognize
+        # Create a simple recognizer object instead of using Mock
+        class SlowRecognizer:
+            async def recognize(self, wav_bytes: bytes, timeout_seconds: float) -> RecognitionResult:
+                return await slow_recognize(wav_bytes, timeout_seconds)
+        
+        recognizer = SlowRecognizer()
         
         recognizers = {"slow": recognizer}
         global_sem = asyncio.Semaphore(2)  # Only allow 2 concurrent
@@ -528,8 +574,12 @@ class TestBackpressureAndCapacity:
                 raw_response={"limited": True}
             )
         
-        recognizer = Mock(spec=MusicRecognizer)
-        recognizer.recognize = slow_recognize
+        # Create a simple recognizer object instead of using Mock
+        class LimitedRecognizer:
+            async def recognize(self, wav_bytes: bytes, timeout_seconds: float) -> RecognitionResult:
+                return await slow_recognize(wav_bytes, timeout_seconds)
+        
+        recognizer = LimitedRecognizer()
         
         recognizers = {"limited": recognizer}
         global_sem = asyncio.Semaphore(10)  # High global limit
@@ -585,11 +635,17 @@ class TestBackpressureAndCapacity:
                 raw_response={"acoustid": True}
             )
         
-        shazam_recognizer = Mock(spec=MusicRecognizer)
-        shazam_recognizer.recognize = shazam_recognize
+        # Create simple recognizer objects instead of using Mock
+        class ShazamRecognizer:
+            async def recognize(self, wav_bytes: bytes, timeout_seconds: float) -> RecognitionResult:
+                return await shazam_recognize(wav_bytes, timeout_seconds)
+                
+        class AcoustIDRecognizer:
+            async def recognize(self, wav_bytes: bytes, timeout_seconds: float) -> RecognitionResult:
+                return await acoustid_recognize(wav_bytes, timeout_seconds)
         
-        acoustid_recognizer = Mock(spec=MusicRecognizer)
-        acoustid_recognizer.recognize = acoustid_recognize
+        shazam_recognizer = ShazamRecognizer()
+        acoustid_recognizer = AcoustIDRecognizer()
         
         recognizers = {
             "shazam": shazam_recognizer,
