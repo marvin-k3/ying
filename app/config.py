@@ -145,18 +145,55 @@ class Config(BaseSettings):
         """Parse stream configuration from environment variables."""
         streams = []
 
-        # Get environment variables directly
+        # Get environment variables - check os.environ first (for tests),
+        # then try pydantic's env loading (for .env file support)
         import os
-
+        
         for i in range(1, self.stream_count + 1):
             name_key = f"STREAM_{i}_NAME"
-            url_key = f"STREAM_{i}_URL"
+            url_key = f"STREAM_{i}_URL" 
             enabled_key = f"STREAM_{i}_ENABLED"
 
-            # Try to get from os.environ first (for backward compatibility)
-            name = os.environ.get(name_key, f"stream_{i}")
-            url = os.environ.get(url_key, "")
-            enabled_str = os.environ.get(enabled_key, "true")
+            # First check os.environ (for tests and explicit env vars)
+            name = os.environ.get(name_key)
+            url = os.environ.get(url_key)
+            enabled_str = os.environ.get(enabled_key)
+            
+            # If not found in os.environ, try to load from .env file using pydantic
+            if name is None or url is None or enabled_str is None:
+                from pydantic_settings import SettingsConfigDict
+                from pydantic_settings import BaseSettings
+                
+                class EnvAccessor(BaseSettings):
+                    model_config = SettingsConfigDict(
+                        env_file=".env",
+                        env_file_encoding="utf-8", 
+                        case_sensitive=False,
+                        extra="allow",
+                    )
+                
+                env_accessor = EnvAccessor()
+                
+                # Use .env values only if not found in os.environ
+                if name is None:
+                    name = getattr(env_accessor, name_key.lower(), f"stream_{i}")
+                if url is None:
+                    url = getattr(env_accessor, url_key.lower(), "")
+                if enabled_str is None:
+                    enabled_str = getattr(env_accessor, enabled_key.lower(), "true")
+            else:
+                # Set defaults if still None (shouldn't happen with os.environ.get)
+                name = name or f"stream_{i}"
+                url = url or ""
+                enabled_str = enabled_str or "true"
+            
+            # Convert to string if needed
+            if not isinstance(name, str):
+                name = str(name) if name is not None else f"stream_{i}"
+            if not isinstance(url, str):
+                url = str(url) if url is not None else ""
+            if not isinstance(enabled_str, str):
+                enabled_str = str(enabled_str) if enabled_str is not None else "true"
 
             # Parse boolean
             enabled = self._parse_boolean(enabled_str)
