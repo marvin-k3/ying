@@ -505,9 +505,6 @@ class WorkerManager:
             try:
                 await asyncio.sleep(30)  # Log every 30 seconds
 
-                if not self._running:
-                    break
-
                 # Collect stats from all workers
                 stats = []
                 for stream_name, worker in self.workers.items():
