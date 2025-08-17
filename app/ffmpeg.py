@@ -117,7 +117,7 @@ class RealFFmpegRunner(FFmpegRunner):
         try:
             args = self._build_ffmpeg_args()
             logger.info(
-                "Starting FFmpeg process",
+                f"Starting FFmpeg process for {self.config.rtsp_url}",
                 extra={
                     "ffmpeg_args": args,
                     "rtsp_url": self.config.rtsp_url,
@@ -134,10 +134,12 @@ class RealFFmpegRunner(FFmpegRunner):
 
             # Start stderr monitoring
             asyncio.create_task(self._monitor_stderr())
+            
+            logger.info(f"FFmpeg process started successfully for {self.config.rtsp_url}")
 
         except Exception as e:
             logger.error(
-                "Failed to start FFmpeg process",
+                f"Failed to start FFmpeg process for {self.config.rtsp_url}",
                 extra={
                     "error": str(e),
                     "rtsp_url": self.config.rtsp_url,
@@ -183,6 +185,9 @@ class RealFFmpegRunner(FFmpegRunner):
         if not self.is_running or not self.process:
             raise RuntimeError("FFmpeg process not running")
 
+        logger.info(f"Starting to read audio data from {self.config.rtsp_url}")
+        chunk_count = 0
+        
         try:
             while self.is_running and self.process:
                 if self.process.stdout is None:
@@ -192,19 +197,27 @@ class RealFFmpegRunner(FFmpegRunner):
                 chunk = await self.process.stdout.read(4096)
                 if not chunk:
                     # EOF - process ended
+                    logger.info(f"FFmpeg process ended for {self.config.rtsp_url} (EOF)")
                     break
+
+                chunk_count += 1
+                if chunk_count == 1:
+                    logger.info(f"Received first audio chunk from {self.config.rtsp_url}")
+                elif chunk_count % 100 == 0:  # Log every 100th chunk
+                    logger.debug(f"Received {chunk_count} audio chunks from {self.config.rtsp_url}")
 
                 yield chunk
 
         except Exception as e:
             logger.error(
-                "Error reading from FFmpeg stdout",
+                f"Error reading from FFmpeg stdout for {self.config.rtsp_url}",
                 extra={"error": str(e), "rtsp_url": self.config.rtsp_url},
             )
             raise
         finally:
             # Process ended, mark as not running
             self.is_running = False
+            logger.info(f"Audio data reading stopped for {self.config.rtsp_url} (total chunks: {chunk_count})")
 
     async def _monitor_stderr(self) -> None:
         """Monitor FFmpeg stderr for error messages."""
@@ -219,14 +232,23 @@ class RealFFmpegRunner(FFmpegRunner):
 
                 error_msg = line.decode().strip()
                 if error_msg:
-                    logger.warning(
-                        "FFmpeg stderr",
-                        extra={"error": error_msg, "rtsp_url": self.config.rtsp_url},
-                    )
+                    # Log connection-related messages at INFO level
+                    if any(keyword in error_msg.lower() for keyword in [
+                        "connection", "rtsp", "timeout", "network", "stream", "input"
+                    ]):
+                        logger.info(
+                            f"FFmpeg connection message for {self.config.rtsp_url}: {error_msg}",
+                            extra={"error": error_msg, "rtsp_url": self.config.rtsp_url},
+                        )
+                    else:
+                        logger.warning(
+                            f"FFmpeg stderr for {self.config.rtsp_url}: {error_msg}",
+                            extra={"error": error_msg, "rtsp_url": self.config.rtsp_url},
+                        )
 
         except Exception as e:
             logger.error(
-                "Error monitoring FFmpeg stderr",
+                f"Error monitoring FFmpeg stderr for {self.config.rtsp_url}",
                 extra={"error": str(e), "rtsp_url": self.config.rtsp_url},
             )
 

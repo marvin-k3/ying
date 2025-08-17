@@ -72,32 +72,40 @@ class TestConfig:
 
     def test_defaults(self, minimal_env: dict[str, str]) -> None:
         """Test default values when env vars not set."""
-        with patch.dict(os.environ, minimal_env, clear=True):
-            config = Config()
+        # Clear all environment variables to test true defaults
+        with patch.dict(os.environ, {}, clear=True):
+            # Mock the model_config to not load .env file
+            with patch.object(Config, 'model_config', {
+                "env_file": None,
+                "env_file_encoding": "utf-8",
+                "case_sensitive": False,
+                "extra": "allow",
+            }):
+                config = Config()
 
-            assert config.port == 44100
-            assert config.db_path == "/data/plays.db"
-            assert config.timezone == "America/Los_Angeles"
-            assert config.stream_count == 5
-            assert config.window_seconds == 12
-            assert config.hop_seconds == 120
-            assert config.dedup_seconds == 300
-            assert config.decision_policy == "shazam_two_hit"
-            assert config.two_hit_hop_tolerance == 1
-            assert config.retain_plays_days == -1
-            assert config.retain_recognitions_days == 30
-            assert config.retention_cleanup_localtime == "04:00"
-            assert config.acoustid_enabled is True
-            assert config.log_level == "INFO"
-            assert config.structured_logs is True
-            assert config.enable_prometheus is True
-            assert config.metrics_path == "/metrics"
-            assert config.global_max_inflight_recognitions == 3
-            assert config.per_provider_max_inflight == 3
-            assert config.queue_max_size == 500
-            assert config.clusters_enabled is True
-            assert config.embed_model == "sentence-transformers/all-MiniLM-L6-v2"
-            assert config.embed_device == "cpu"
+                assert config.port == 44100
+                assert config.db_path == "/data/plays.db"
+                assert config.timezone == "America/Los_Angeles"
+                assert config.stream_count == 5
+                assert config.window_seconds == 12
+                assert config.hop_seconds == 120
+                assert config.dedup_seconds == 300
+                assert config.decision_policy == "shazam_two_hit"
+                assert config.two_hit_hop_tolerance == 1
+                assert config.retain_plays_days == -1
+                assert config.retain_recognitions_days == 30
+                assert config.retention_cleanup_localtime == "04:00"
+                assert config.acoustid_enabled is True
+                assert config.log_level == "INFO"
+                assert config.structured_logs is True
+                assert config.enable_prometheus is True
+                assert config.metrics_path == "/metrics"
+                assert config.global_max_inflight_recognitions == 3
+                assert config.per_provider_max_inflight == 3
+                assert config.queue_max_size == 500
+                assert config.clusters_enabled is True
+                assert config.embed_model == "sentence-transformers/all-MiniLM-L6-v2"
+                assert config.embed_device == "cpu"
 
     def test_stream_config_parsing(self, minimal_env: dict[str, str]) -> None:
         """Test parsing of stream configuration from environment."""
