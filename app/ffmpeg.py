@@ -58,14 +58,20 @@ class FFmpegRunner(ABC):
 
     def _build_ffmpeg_args(self) -> list[str]:
         """Build FFmpeg command line arguments."""
-        return [
+        args = [
             "ffmpeg",
             "-rtsp_transport",
             self.config.rtsp_transport,
             "-stimeout",
             str(self.config.rtsp_timeout),
-            "-rw_timeout",
-            str(self.config.rw_timeout),
+        ]
+        
+        # Only add rw_timeout for protocols that support it
+        # rw_timeout is not supported for RTSP in many FFmpeg versions
+        if not self.config.rtsp_url.startswith(("rtsp://", "rtsps://")):
+            args.extend(["-rw_timeout", str(self.config.rw_timeout)])
+        
+        args.extend([
             "-i",
             self.config.rtsp_url,
             "-vn",  # No video
@@ -78,7 +84,9 @@ class FFmpegRunner(ABC):
             "-loglevel",
             "error",  # Only errors
             "pipe:1",  # Output to stdout
-        ]
+        ])
+        
+        return args
 
     def _calculate_backoff(self) -> float:
         """Calculate exponential backoff delay."""

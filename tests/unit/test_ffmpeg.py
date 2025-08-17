@@ -74,8 +74,6 @@ class TestFFmpegRunner:
             "tcp",
             "-stimeout",
             "10000000",
-            "-rw_timeout",
-            "15000000",
             "-i",
             "rtsp://test.com/stream",
             "-vn",
@@ -112,8 +110,6 @@ class TestFFmpegRunner:
             "udp",
             "-stimeout",
             "5000000",
-            "-rw_timeout",
-            "10000000",
             "-i",
             "rtsp://custom.com/stream",
             "-vn",
@@ -121,6 +117,37 @@ class TestFFmpegRunner:
             "2",
             "-ar",
             "22050",
+            "-f",
+            "wav",
+            "-loglevel",
+            "error",
+            "pipe:1",
+        ]
+
+        assert args == expected
+
+    def test_build_ffmpeg_args_non_rtsp(self):
+        """Test FFmpeg argument building with non-RTSP URL includes rw_timeout."""
+        config = FFmpegConfig(rtsp_url="http://example.com/stream.mp4")
+        runner = FakeFFmpegRunner(config)
+
+        args = runner._build_ffmpeg_args()
+
+        expected = [
+            "ffmpeg",
+            "-rtsp_transport",
+            "tcp",
+            "-stimeout",
+            "10000000",
+            "-rw_timeout",
+            "15000000",
+            "-i",
+            "http://example.com/stream.mp4",
+            "-vn",
+            "-ac",
+            "1",
+            "-ar",
+            "44100",
             "-f",
             "wav",
             "-loglevel",
