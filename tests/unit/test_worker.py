@@ -102,8 +102,6 @@ def config(temp_db, monkeypatch):
         global_max_inflight_recognitions=3,
         per_provider_max_inflight=2,
         queue_max_size=100,
-        acoustid_enabled=True,
-        acoustid_api_key="test_key",
     )
 
     return config
@@ -358,16 +356,14 @@ class TestWorkerManager:
         assert len(recognizers) == 1
 
     @pytest.mark.asyncio
-    async def test_create_recognizers_acoustid_disabled(self, config):
-        """Test recognizer creation with AcoustID disabled."""
-        config.acoustid_enabled = False
-
+    async def test_create_recognizers_shazam_only(self, config):
+        """Test recognizer creation with Shazam only (AcoustID removed)."""
         clock = FakeClock(datetime.now(UTC))
         manager = WorkerManager(config, clock)
 
         recognizers = manager._create_recognizers()
 
-        # Should only have shazam
+        # Should only have shazam (AcoustID support removed)
         assert "shazam" in recognizers
         assert "acoustid" not in recognizers
         assert len(recognizers) == 1

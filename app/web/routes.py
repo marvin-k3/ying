@@ -288,10 +288,10 @@ async def get_recognitions(
             )
 
     # Validate provider if provided
-    if provider and provider not in ["shazam", "acoustid"]:
+    if provider and provider not in ["shazam"]:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid provider '{provider}'. Valid providers: shazam, acoustid",
+            detail=f"Invalid provider '{provider}'. Valid providers: shazam",
         )
 
     # Query recognitions from database

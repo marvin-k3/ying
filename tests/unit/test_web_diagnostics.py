@@ -123,7 +123,6 @@ class TestDiagnosticsView:
         assert "living_room" in content  # Stream from config
         assert "kitchen" in content  # Stream from config
         assert "shazam" in content  # Provider option
-        assert "acoustid" in content  # Provider option
 
     def test_diagnostics_view_includes_streams(self, client):
         """Test that diagnostics view includes configured streams."""
