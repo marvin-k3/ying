@@ -3,7 +3,6 @@
 import asyncio
 import logging
 from pathlib import Path
-from typing import Any
 
 from .config import Config, StreamConfig
 from .db.repo import PlayRepository, RecognitionRepository, TrackRepository
@@ -234,9 +233,13 @@ class StreamWorker:
 
                 window_count += 1
                 if window_count == 1:
-                    logger.info(f"Received first audio window for stream {self.stream_config.name}")
+                    logger.info(
+                        f"Received first audio window for stream {self.stream_config.name}"
+                    )
                 elif window_count % 10 == 0:  # Log every 10th window
-                    logger.info(f"Processed {window_count} audio windows for stream {self.stream_config.name}")
+                    logger.info(
+                        f"Processed {window_count} audio windows for stream {self.stream_config.name}"
+                    )
 
                 await self._process_window(window.wav_bytes)
 
@@ -363,7 +366,7 @@ class WorkerManager:
 
         # Workers
         self.workers: dict[str, StreamWorker] = {}
-        
+
         # Stats tracking
         self._stats_task: asyncio.Task | None = None
         self._running = False
@@ -442,13 +445,13 @@ class WorkerManager:
     async def start_all(self) -> None:
         """Start workers for all enabled streams."""
         logger.info("Starting all stream workers")
-        
+
         # Log all configured streams at startup
         logger.info(f"Configured {len(self.config.streams)} streams:")
         for i, stream_config in enumerate(self.config.streams, 1):
             status = "ENABLED" if stream_config.enabled else "DISABLED"
             logger.info(f"  {i}. {stream_config.name}: {stream_config.url} ({status})")
-        
+
         enabled_count = 0
         for stream_config in self.config.streams:
             if stream_config.enabled:
@@ -459,9 +462,9 @@ class WorkerManager:
                 enabled_count += 1
             else:
                 logger.info(f"Skipping disabled stream {stream_config.name}")
-        
+
         logger.info(f"Started {enabled_count} active stream workers")
-        
+
         # Start periodic stats logging
         self._running = True
         self._stats_task = asyncio.create_task(self._log_periodic_stats())
@@ -469,7 +472,7 @@ class WorkerManager:
     async def stop_all(self) -> None:
         """Stop all workers."""
         logger.info("Stopping all stream workers")
-        
+
         # Stop stats task
         self._running = False
         if self._stats_task:
@@ -501,31 +504,37 @@ class WorkerManager:
         while self._running:
             try:
                 await asyncio.sleep(30)  # Log every 30 seconds
-                
+
                 if not self._running:
                     break
-                
+
                 # Collect stats from all workers
                 stats = []
                 for stream_name, worker in self.workers.items():
-                    ffmpeg_status = "running" if worker.ffmpeg_runner.is_running else "stopped"
+                    ffmpeg_status = (
+                        "running" if worker.ffmpeg_runner.is_running else "stopped"
+                    )
                     worker_status = "running" if worker._running else "stopped"
-                    
-                    stats.append({
-                        "stream": stream_name,
-                        "worker": worker_status,
-                        "ffmpeg": ffmpeg_status,
-                        "url": worker.stream_config.url
-                    })
-                
+
+                    stats.append(
+                        {
+                            "stream": stream_name,
+                            "worker": worker_status,
+                            "ffmpeg": ffmpeg_status,
+                            "url": worker.stream_config.url,
+                        }
+                    )
+
                 # Log summary
                 if stats:
                     logger.info(f"Stream status ({len(stats)} active streams):")
                     for stat in stats:
-                        logger.info(f"  {stat['stream']}: worker={stat['worker']}, ffmpeg={stat['ffmpeg']}")
+                        logger.info(
+                            f"  {stat['stream']}: worker={stat['worker']}, ffmpeg={stat['ffmpeg']}"
+                        )
                 else:
                     logger.warning("No active streams found")
-                    
+
             except asyncio.CancelledError:
                 break
             except Exception as e:

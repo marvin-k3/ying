@@ -1,8 +1,8 @@
 """Tests for app.db.migrate module."""
 
 import tempfile
+from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
-from typing import AsyncGenerator, Generator
 
 import aiosqlite
 import pytest
@@ -30,7 +30,9 @@ class TestMigrationManager:
         temp_dir.rmdir()
 
     @pytest.fixture
-    async def migration_manager(self, temp_db_path: Path, temp_migrations_dir: Path) -> AsyncGenerator[MigrationManager, None]:
+    async def migration_manager(
+        self, temp_db_path: Path, temp_migrations_dir: Path
+    ) -> AsyncGenerator[MigrationManager, None]:
         """Create a MigrationManager instance with isolated temp dirs."""
         manager = MigrationManager(temp_db_path)
         # Override the migrations directory to use our temp dir

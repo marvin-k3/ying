@@ -51,7 +51,11 @@ class TestStreamConfig:
         )
         c = StreamConfig(name="test", url="rtsp://localhost/stream", enabled=True)
         assert c.url == "rtsp://localhost/stream"
-        c = StreamConfig(name="test", url="rtsps://192.168.1.100:7441/rEdAcTedCoDe?enableSrtp", enabled=True)
+        c = StreamConfig(
+            name="test",
+            url="rtsps://192.168.1.100:7441/rEdAcTedCoDe?enableSrtp",
+            enabled=True,
+        )
         assert c.url == "rtsps://192.168.1.100:7441/rEdAcTedCoDe?enableSrtp"
 
         # Invalid URLs
@@ -78,12 +82,16 @@ class TestConfig:
         # Clear all environment variables to test true defaults
         with patch.dict(os.environ, {}, clear=True):
             # Mock the model_config to not load .env file
-            with patch.object(Config, 'model_config', {
-                "env_file": None,
-                "env_file_encoding": "utf-8",
-                "case_sensitive": False,
-                "extra": "allow",
-            }):
+            with patch.object(
+                Config,
+                "model_config",
+                {
+                    "env_file": None,
+                    "env_file_encoding": "utf-8",
+                    "case_sensitive": False,
+                    "extra": "allow",
+                },
+            ):
                 config = Config()
 
                 assert config.port == 44100
