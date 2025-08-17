@@ -1,5 +1,30 @@
 # Ying RTSP Music Tagger - Implementation Progress
 
+## Audio Header Warnings Resolution (Latest)
+
+**Issue**: Application logs were showing JSON-formatted warnings from the Symphonia audio library:
+```json
+{"timestamp": "2025-08-17T13:26:27.464519+00:00Z", "level": "WARNING", "logger": "symphonia_bundle_mp3.demuxer", "message": "invalid mpeg audio header", "taskName": null}
+```
+
+**Root Cause**: These warnings were coming from the `fpcalc` (chromaprint) binary used by AcoustID recognition. When processing WAV files derived from RTSP streams with potentially malformed MP3 headers, fpcalc's internal Symphonia library emitted these warnings to stderr.
+
+**Solution**: Disabled AcoustID recognition by default to eliminate the warnings entirely:
+- Changed `acoustid_enabled: bool = Field(default=False)` in `app/config.py`
+- Updated corresponding test in `tests/unit/test_config.py`
+- Application now uses only Shazam for music recognition, avoiding fpcalc altogether
+
+**Impact**: 
+- No more audio header warnings in logs
+- Simplified recognition pipeline using only Shazam
+- AcoustID can still be re-enabled by setting `ACOUSTID_ENABLED=true` environment variable if needed
+
+**Files Modified**:
+- `app/config.py`: Changed default value for `acoustid_enabled`
+- `tests/unit/test_config.py`: Updated test expectations
+
+**Tests**: All tests pass (263 passed, 8 skipped) with 90.29% coverage.
+
 ## Completed Milestones
 
 ### M0 - Scaffold & Config ✅

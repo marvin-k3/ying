@@ -60,7 +60,7 @@ class Config(BaseSettings):
     )
 
     # Provider settings
-    acoustid_enabled: bool = Field(default=True)
+    acoustid_enabled: bool = Field(default=False)
     acoustid_api_key: str = Field(default="")
     chromaprint_path: str = Field(default="/usr/bin/fpcalc")
 

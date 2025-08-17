@@ -143,6 +143,7 @@ class AcoustIDRecognizer(MusicRecognizer):
                     logger.error(f"fpcalc failed: {error_msg}")
                     return None
 
+
                 # Parse JSON output
                 result = json.loads(stdout.decode())
                 fingerprint = result.get("fingerprint")
@@ -161,6 +162,8 @@ class AcoustIDRecognizer(MusicRecognizer):
         except Exception as e:
             logger.error(f"Fingerprint generation failed: {e}")
             return None
+
+
 
     async def _query_acoustid(
         self, fingerprint: str, timeout_seconds: float
