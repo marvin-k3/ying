@@ -31,7 +31,7 @@ class TestClock:
 
     def test_fake_clock_initialization(self):
         """Test fake clock initialization."""
-        start_time = datetime(2024, 1, 1, 12, 0, 0)
+        start_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         clock = FakeClock(start_time)
 
         assert clock.now() == start_time
@@ -39,7 +39,7 @@ class TestClock:
 
     async def test_fake_clock_sleep(self):
         """Test fake clock sleep behavior."""
-        start_time = datetime(2024, 1, 1, 12, 0, 0)
+        start_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         clock = FakeClock(start_time)
 
         # Sleep should advance time and record the call
@@ -51,7 +51,7 @@ class TestClock:
 
     def test_fake_clock_advance(self):
         """Test fake clock manual time advancement."""
-        start_time = datetime(2024, 1, 1, 12, 0, 0)
+        start_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         clock = FakeClock(start_time)
 
         clock.advance(10.0)
@@ -61,10 +61,10 @@ class TestClock:
 
     def test_fake_clock_set_time(self):
         """Test fake clock time setting."""
-        start_time = datetime(2024, 1, 1, 12, 0, 0)
+        start_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
         clock = FakeClock(start_time)
 
-        new_time = datetime(2024, 1, 1, 15, 30, 0)
+        new_time = datetime(2024, 1, 1, 15, 30, 0, tzinfo=UTC)
         clock.set_time(new_time)
         assert clock.now() == new_time
 
@@ -74,14 +74,14 @@ class TestAudioWindow:
 
     def test_audio_window_properties(self):
         """Test AudioWindow computed properties."""
-        start_time = datetime(2024, 1, 1, 12, 0, 0)
-        end_time = datetime(2024, 1, 1, 12, 0, 12)  # 12 seconds later
+        start_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+        end_time = datetime(2024, 1, 1, 12, 0, 12, tzinfo=UTC)  # 12 seconds later
         wav_data = b"fake_wav_data"
 
         window = AudioWindow(start_utc=start_time, end_utc=end_time, wav_bytes=wav_data)
 
         assert window.duration_seconds == 12.0
-        assert window.center_utc == datetime(2024, 1, 1, 12, 0, 6)
+        assert window.center_utc == datetime(2024, 1, 1, 12, 0, 6, tzinfo=UTC)
         assert window.wav_bytes == wav_data
 
 
@@ -96,7 +96,7 @@ class TestWindowScheduler:
     @pytest.fixture
     def fake_clock(self):
         """Create fake clock for testing."""
-        return FakeClock(datetime(2024, 1, 1, 12, 0, 0))
+        return FakeClock(datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC))
 
     @pytest.fixture
     def scheduler(self, config, fake_clock):
@@ -106,7 +106,7 @@ class TestWindowScheduler:
     def test_calculate_next_window_start_exact_boundary(self, scheduler):
         """Test window start calculation on exact boundary."""
         # Start at exactly a hop boundary
-        current_time = datetime(2024, 1, 1, 12, 0, 0)  # 12:00:00
+        current_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)  # 12:00:00
         next_start = scheduler.calculate_next_window_start(current_time)
 
         # Should start immediately
@@ -115,21 +115,21 @@ class TestWindowScheduler:
     def test_calculate_next_window_start_mid_hop(self, scheduler):
         """Test window start calculation mid-hop."""
         # Start 30 seconds into a hop (past the 12-second window)
-        current_time = datetime(2024, 1, 1, 12, 0, 30)
+        current_time = datetime(2024, 1, 1, 12, 0, 30, tzinfo=UTC)
         next_start = scheduler.calculate_next_window_start(current_time)
 
         # Should start at the next hop boundary since we're past the window time
-        expected_start = datetime(2024, 1, 1, 12, 2, 0)
+        expected_start = datetime(2024, 1, 1, 12, 2, 0, tzinfo=UTC)
         assert next_start == expected_start
 
     def test_calculate_next_window_start_past_window(self, scheduler):
         """Test window start calculation when past current window."""
         # Start 60 seconds into a hop (past the 12-second window)
-        current_time = datetime(2024, 1, 1, 12, 1, 0)  # 12:01:00
+        current_time = datetime(2024, 1, 1, 12, 1, 0, tzinfo=UTC)  # 12:01:00
         next_start = scheduler.calculate_next_window_start(current_time)
 
         # Should start at the next hop boundary
-        expected_start = datetime(2024, 1, 1, 12, 2, 0)  # 12:02:00
+        expected_start = datetime(2024, 1, 1, 12, 2, 0, tzinfo=UTC)  # 12:02:00
         assert next_start == expected_start
 
     async def test_schedule_windows_single_window(self, scheduler, fake_clock):
@@ -152,8 +152,8 @@ class TestWindowScheduler:
         window = windows[0]
 
         # Check window timing
-        expected_start = datetime(2024, 1, 1, 12, 0, 0)
-        expected_end = datetime(2024, 1, 1, 12, 0, 12)
+        expected_start = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+        expected_end = datetime(2024, 1, 1, 12, 0, 12, tzinfo=UTC)
 
         assert window.start_utc == expected_start
         assert window.end_utc == expected_end
@@ -181,9 +181,9 @@ class TestWindowScheduler:
 
         # Check timing of windows
         expected_starts = [
-            datetime(2024, 1, 1, 12, 0, 0),
-            datetime(2024, 1, 1, 12, 2, 0),
-            datetime(2024, 1, 1, 12, 4, 0),
+            datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC),
+            datetime(2024, 1, 1, 12, 2, 0, tzinfo=UTC),
+            datetime(2024, 1, 1, 12, 4, 0, tzinfo=UTC),
         ]
 
         for i, window in enumerate(windows):
@@ -193,7 +193,7 @@ class TestWindowScheduler:
     async def test_schedule_windows_initial_wait(self, scheduler, fake_clock):
         """Test that scheduler waits for next window boundary."""
         # Set clock to 30 seconds into a hop
-        fake_clock.set_time(datetime(2024, 1, 1, 12, 0, 30))
+        fake_clock.set_time(datetime(2024, 1, 1, 12, 0, 30, tzinfo=UTC))
 
         async def audio_stream() -> AsyncGenerator[bytes, None]:
             yield b"audio_chunk_data"

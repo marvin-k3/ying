@@ -122,7 +122,7 @@ class WindowScheduler:
         if seconds_since_epoch >= hop_boundary + self.window_seconds:
             hop_boundary += self.hop_seconds
 
-        return datetime.fromtimestamp(hop_boundary)
+        return datetime.fromtimestamp(hop_boundary, tz=UTC)
 
     async def schedule_windows(
         self, audio_stream: AsyncGenerator[bytes, None]

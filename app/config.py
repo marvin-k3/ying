@@ -10,7 +10,7 @@ class StreamConfig(BaseModel):
     """Configuration for a single RTSP stream."""
 
     name: str = Field(..., pattern=r"^[a-zA-Z0-9_-]+$", min_length=1, max_length=50)
-    url: str = Field(..., pattern=r"^rtsp://.*$")
+    url: str = Field(..., pattern=r"^rtsps?://.*$")
     enabled: bool = True
 
     @field_validator("name")
@@ -27,8 +27,8 @@ class StreamConfig(BaseModel):
     @classmethod
     def validate_url(cls, v: str) -> str:
         """Validate RTSP URL format."""
-        if not v.startswith("rtsp://"):
-            raise ValueError("URL must be RTSP protocol")
+        if not v.startswith(("rtsp://", "rtsps://")):
+            raise ValueError("URL must be RTSP or RTSP over SSL protocol")
         return v
 
 
@@ -153,6 +153,7 @@ class Config(BaseSettings):
             url_key = f"STREAM_{i}_URL"
             enabled_key = f"STREAM_{i}_ENABLED"
 
+            # Try to get from os.environ first (for backward compatibility)
             name = os.environ.get(name_key, f"stream_{i}")
             url = os.environ.get(url_key, "")
             enabled_str = os.environ.get(enabled_key, "true")

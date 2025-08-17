@@ -49,7 +49,10 @@ class TestStreamConfig:
         StreamConfig(
             name="test", url="rtsp://user:pass@192.168.1.100:554/stream", enabled=True
         )
-        StreamConfig(name="test", url="rtsp://localhost/stream", enabled=True)
+        c = StreamConfig(name="test", url="rtsp://localhost/stream", enabled=True)
+        assert c.url == "rtsp://localhost/stream"
+        c = StreamConfig(name="test", url="rtsps://192.168.1.100:7441/rEdAcTedCoDe?enableSrtp", enabled=True)
+        assert c.url == "rtsps://192.168.1.100:7441/rEdAcTedCoDe?enableSrtp"
 
         # Invalid URLs
         with pytest.raises(ValidationError, match="String should match pattern"):

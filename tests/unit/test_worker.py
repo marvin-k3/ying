@@ -112,7 +112,7 @@ def config(temp_db, monkeypatch):
 @pytest.fixture
 def clock():
     """Create fake clock."""
-    return FakeClock(datetime(2024, 1, 1, 12, 0, 0))
+    return FakeClock(datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC))
 
 
 @pytest.fixture
