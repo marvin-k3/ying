@@ -106,7 +106,7 @@ class TestConfig:
                 assert config.retain_plays_days == -1
                 assert config.retain_recognitions_days == 30
                 assert config.retention_cleanup_localtime == "04:00"
-                assert config.acoustid_enabled is False
+                # AcoustID support removed - only Shazam is supported
                 assert config.log_level == "INFO"
                 assert config.structured_logs is True
                 assert config.enable_prometheus is True
@@ -241,7 +241,6 @@ class TestConfig:
     def test_boolean_parsing(self, minimal_env: dict[str, str]) -> None:
         """Test boolean environment variable parsing."""
         boolean_fields = [
-            "acoustid_enabled",
             "structured_logs",
             "enable_prometheus",
             "clusters_enabled",

@@ -2,12 +2,12 @@
 
 ## 0) Goals & Constraints
 
-* Ingest **multiple RTSP streams** (≤5) → extract **12s** audio windows every **120s** → call **Shazam (unofficial)** and **AcoustID** in parallel.
-* **Decision policy**: Shazam **two-hit confirm** (same track in consecutive windows) → insert a **play**; AcoustID stored for observability only.
+* Ingest **multiple RTSP streams** (≤5) → extract **12s** audio windows every **120s** → call **Shazam (unofficial)** for music recognition.
+* **Decision policy**: Shazam **two-hit confirm** (same track in consecutive windows) → insert a **play**.
 * Persist to **SQLite** with forward-only **SQL migrations**.
 * Web UI (FastAPI + Jinja + Bootstrap CDN) shows **day view**, **search** (FTS + embeddings), **diagnostics**, **clusters** (UMAP+HDBSCAN), with **Chart.js** for histograms/scatter.
 * **Prometheus** metrics; **OpenTelemetry** traces to Jaeger.
-* **No auth**; bind `0.0.0.0:44100` (you’ll map ports as needed).
+* **No auth**; bind `0.0.0.0:44100` (you'll map ports as needed).
 * **Hot reload** via **SIGHUP** and **/internal/reload** (no auth).
 
 ---
@@ -27,7 +27,6 @@ app/
   recognizers/
     base.py               # MusicRecognizer interface + models
     shazamio_recognizer.py
-    acoustid_recognizer.py
   db/
     migrations/           # 0001_init.sql, 0002_*.sql…
     migrate.py            # simple forward-only migrator
@@ -68,7 +67,7 @@ Core:
   Retention:
 * `RETAIN_PLAYS_DAYS=-1`, `RETAIN_RECOGNITIONS_DAYS=30`, `RETENTION_CLEANUP_LOCALTIME=04:00`
   Providers:
-* `ACOUSTID_ENABLED=true`, `ACOUSTID_API_KEY=…`, `CHROMAPRINT_PATH=/usr/bin/fpcalc`
+* Shazam is the primary and only music recognition provider
   Logging/Tracing:
 * `LOG_LEVEL=INFO`, `STRUCTURED_LOGS=true`
 * `OTEL_SERVICE_NAME=rtsp-music-tagger`, `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317`, `OTEL_TRACES_SAMPLER_ARG=1.0`
@@ -120,14 +119,13 @@ Tables: `streams`, `tracks`, `plays`, `recognitions` (+ `schema_migrations`), pl
 
 * Interface `MusicRecognizer.recognize(wav_bytes, timeout)` → `RecognitionResult` (track\_id-like key, title, artist, album, isrc?, confidence/score, artwork, raw JSON).
 * `shazamio_recognizer.py` (async; reverse-engineered API; 12s clips).
-* `acoustid_recognizer.py` uses `fpcalc` + AcoustID + MusicBrainz.
 
-**Policy A (final)**: **Shazam two-hit confirm** drives `plays`; AcoustID stored only in `recognitions`.
+**Policy A (final)**: **Shazam two-hit confirm** drives `plays`.
 
 **TDD**
 
 * Fake recognizer for unit tests (no network).
-* Contract tests w/ recorded fixtures: low/med/high confidence, “no match”.
+* Contract tests w/ recorded fixtures: low/med/high confidence, "no match".
 * Aggregator tests: two-hit confirm logic across consecutive windows; dedup never double-inserts.
 
 ---
@@ -160,7 +158,7 @@ Routes:
 **TDD**
 
 * Fake embedder returns deterministic vectors (no HF calls).
-* Golden queries: “Beyoncé/Beyonce”, “AC/DC”, “feat./ft.”; ensure exact FTS hits never get dropped by blending.
+* Golden queries: "Beyoncé/Beyonce", "AC/DC", "feat./ft."; ensure exact FTS hits never get dropped by blending.
 
 ---
 
@@ -204,7 +202,7 @@ Routes:
 
 **TDD**
 
-* Fake clock; boundary tests for inclusive/exclusive cutoffs; property test never deletes “too new”.
+* Fake clock; boundary tests for inclusive/exclusive cutoffs; property test never deletes "too new".
 
 ---
 
@@ -267,8 +265,6 @@ docker run --rm -it \
   -e STREAM_2_NAME=yard \
   -e STREAM_2_URL=rtsp://user:pass@cam2/stream \
   -e STREAM_2_ENABLED=true \
-  -e ACOUSTID_ENABLED=true \
-  -e ACOUSTID_API_KEY=YOUR_KEY \
   -p 127.0.0.1:44100:44100 \
   -v $(pwd)/data:/data \
   rtsp-music-tagger
@@ -318,7 +314,7 @@ docker run --rm -it \
 
 **M5 – Recognizers**
 
-* Shazamio adapter + fixtures; AcoustID adapter + fpcalc shim.
+* Shazamio adapter + fixtures.
 * Tests: contract fixtures; timeout/error paths; parallel calls capped.
 
 **M6 – Worker Orchestration**

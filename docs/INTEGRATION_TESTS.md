@@ -4,55 +4,32 @@ This document describes how to run integration tests that use live APIs.
 
 ## Overview
 
-Integration tests validate that our recognizer implementations work correctly with real music recognition services:
+Integration tests validate that our recognizer implementation works correctly with the real Shazam API:
 
 - **Shazam Integration**: Tests the `ShazamioRecognizer` with the actual Shazam API
-- **AcoustID Integration**: Tests the `AcoustIDRecognizer` with the actual AcoustID/MusicBrainz APIs
-- **Parallel Integration**: Tests running both recognizers simultaneously
+- **Real Music Recognition**: Validates actual music recognition capabilities
 
 ## Setup
 
 ### Prerequisites
 
 1. **Internet connection** - Required for API calls
-2. **fpcalc binary** (for AcoustID tests):
-   ```bash
-   # Ubuntu/Debian
-   sudo apt-get install libchromaprint-tools
-   
-   # macOS
-   brew install chromaprint
-   
-   # Verify installation
-   fpcalc --version
-   ```
-
-3. **AcoustID API Key** (optional, for AcoustID tests):
-   - Sign up at https://acoustid.org/my
-   - Get your API key from the account page
+2. **No additional dependencies** - Shazam API doesn't require external binaries or API keys
 
 ### Environment Variables
 
 - `YING_ENABLE_LIVE_TESTS=1` - **Required** to enable integration tests
-- `ACOUSTID_API_KEY=your_key` - Optional, enables AcoustID tests
 
 ## Running Integration Tests
 
 ### Quick Start
 
 ```bash
-# Run all integration tests (Shazam only, no AcoustID)
+# Run all integration tests (Shazam only)
 rye run test-integration
 
 # Or manually:
 YING_ENABLE_LIVE_TESTS=1 rye run test tests/integration/ -v -s
-```
-
-### With AcoustID Support
-
-```bash
-# Run with AcoustID API key
-YING_ENABLE_LIVE_TESTS=1 ACOUSTID_API_KEY=your_api_key rye run test tests/integration/ -v -s
 ```
 
 ### Specific Test Categories
@@ -60,9 +37,6 @@ YING_ENABLE_LIVE_TESTS=1 ACOUSTID_API_KEY=your_api_key rye run test tests/integr
 ```bash
 # Test only Shazam integration
 YING_ENABLE_LIVE_TESTS=1 rye run test tests/integration/test_recognizers_live.py::TestShazamIntegration -v -s
-
-# Test only AcoustID integration (requires API key)
-YING_ENABLE_LIVE_TESTS=1 ACOUSTID_API_KEY=your_key rye run test tests/integration/test_recognizers_live.py::TestAcoustIDIntegration -v -s
 
 # Test parallel execution
 YING_ENABLE_LIVE_TESTS=1 rye run test tests/integration/test_recognizers_live.py::TestParallelIntegration -v -s
@@ -100,14 +74,9 @@ The integration tests use real audio files when available, falling back to synth
    - 🔍 Returns "no match" for synthetic audio (this is normal)
    - ✅ **Real music test case**: Demonstrates actual recognition accuracy
 
-2. **AcoustID Tests**:
-   - ✅ Fingerprint generation succeeds (if fpcalc is installed)
-   - ✅ API calls complete without exceptions
-   - 🔍 Likely returns "no match" for synthetic audio (this is normal)
-
-3. **Parallel Tests**:
-   - ✅ Both services can run simultaneously
-   - ✅ Results are independent (one service failure doesn't affect the other)
+2. **Parallel Tests**:
+   - ✅ Shazam can run recognition tasks successfully
+   - ✅ Error handling works correctly
 
 ### Understanding Results
 
@@ -144,21 +113,6 @@ SKIPPED [1] ... Live API tests disabled. Set YING_ENABLE_LIVE_TESTS=1 to enable.
 
 **Solution**: Set the `YING_ENABLE_LIVE_TESTS=1` environment variable.
 
-### AcoustID Tests Fail
-
-```
-❌ Failed to generate fingerprint (fpcalc may not be installed)
-```
-
-**Solution**: Install chromaprint tools:
-```bash
-# Ubuntu/Debian
-sudo apt-get install libchromaprint-tools
-
-# macOS  
-brew install chromaprint
-```
-
 ### Network/Timeout Errors
 
 ```
@@ -187,15 +141,9 @@ For automated testing in CI/CD:
 - name: Run Integration Tests
   env:
     YING_ENABLE_LIVE_TESTS: 1
-    ACOUSTID_API_KEY: ${{ secrets.ACOUSTID_API_KEY }}
   run: |
-    # Install chromaprint
-    sudo apt-get install libchromaprint-tools
-    # Run tests
     rye run test-integration
 ```
-
-**Note**: Be careful with API keys in CI - use secure secret management.
 
 ## Test Development
 

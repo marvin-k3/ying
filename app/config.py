@@ -60,9 +60,7 @@ class Config(BaseSettings):
     )
 
     # Provider settings
-    acoustid_enabled: bool = Field(default=False)
-    acoustid_api_key: str = Field(default="")
-    chromaprint_path: str = Field(default="/usr/bin/fpcalc")
+    # AcoustID support removed - only Shazam is supported
 
     # Logging and tracing
     log_level: str = Field(default="INFO")
@@ -148,32 +146,31 @@ class Config(BaseSettings):
         # Get environment variables - check os.environ first (for tests),
         # then try pydantic's env loading (for .env file support)
         import os
-        
+
         for i in range(1, self.stream_count + 1):
             name_key = f"STREAM_{i}_NAME"
-            url_key = f"STREAM_{i}_URL" 
+            url_key = f"STREAM_{i}_URL"
             enabled_key = f"STREAM_{i}_ENABLED"
 
             # First check os.environ (for tests and explicit env vars)
             name = os.environ.get(name_key)
             url = os.environ.get(url_key)
             enabled_str = os.environ.get(enabled_key)
-            
+
             # If not found in os.environ, try to load from .env file using pydantic
             if name is None or url is None or enabled_str is None:
-                from pydantic_settings import SettingsConfigDict
-                from pydantic_settings import BaseSettings
-                
+                from pydantic_settings import BaseSettings, SettingsConfigDict
+
                 class EnvAccessor(BaseSettings):
                     model_config = SettingsConfigDict(
                         env_file=".env",
-                        env_file_encoding="utf-8", 
+                        env_file_encoding="utf-8",
                         case_sensitive=False,
                         extra="allow",
                     )
-                
+
                 env_accessor = EnvAccessor()
-                
+
                 # Use .env values only if not found in os.environ
                 if name is None:
                     name = getattr(env_accessor, name_key.lower(), f"stream_{i}")
@@ -186,7 +183,7 @@ class Config(BaseSettings):
                 name = name or f"stream_{i}"
                 url = url or ""
                 enabled_str = enabled_str or "true"
-            
+
             # Convert to string if needed
             if not isinstance(name, str):
                 name = str(name) if name is not None else f"stream_{i}"

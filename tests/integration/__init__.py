@@ -6,6 +6,5 @@ They are disabled by default to keep regular test runs fast.
 To run integration tests:
     YING_ENABLE_LIVE_TESTS=1 rye run test tests/integration/
 
-For AcoustID tests, also set:
-    ACOUSTID_API_KEY=your_api_key_here
+AcoustID support has been removed - only Shazam is supported
 """

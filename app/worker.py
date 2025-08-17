@@ -7,7 +7,8 @@ from pathlib import Path
 from .config import Config, StreamConfig
 from .db.repo import PlayRepository, RecognitionRepository, TrackRepository
 from .ffmpeg import FFmpegRunner, RealFFmpegRunner
-from .recognizers.acoustid_recognizer import AcoustIDRecognizer
+
+# AcoustID support removed - only Shazam is supported
 from .recognizers.base import MusicRecognizer, RecognitionResult
 from .recognizers.shazamio_recognizer import ShazamioRecognizer
 from .scheduler import Clock, RealClock, TwoHitAggregator, WindowScheduler
@@ -350,10 +351,7 @@ class WorkerManager:
 
         # Per-provider semaphores
         self.per_provider_semaphores: dict[str, asyncio.Semaphore] = {}
-        if config.acoustid_enabled:
-            self.per_provider_semaphores["acoustid"] = asyncio.Semaphore(
-                config.per_provider_max_inflight
-            )
+        # AcoustID support removed - only Shazam is supported
         # Shazam is always enabled (no API key required)
         self.per_provider_semaphores["shazam"] = asyncio.Semaphore(
             config.per_provider_max_inflight
@@ -382,13 +380,7 @@ class WorkerManager:
         # Shazam is always enabled
         recognizers["shazam"] = ShazamioRecognizer(timeout_seconds=30.0)
 
-        # AcoustID is optional
-        if self.config.acoustid_enabled and self.config.acoustid_api_key:
-            recognizers["acoustid"] = AcoustIDRecognizer(
-                api_key=self.config.acoustid_api_key,
-                chromaprint_path=self.config.chromaprint_path,
-                timeout_seconds=30.0,
-            )
+        # AcoustID support removed - only Shazam is supported
 
         return recognizers
 

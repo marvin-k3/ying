@@ -11,7 +11,7 @@ from pathlib import Path
 # Add the parent directory to the path so we can import app modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.recognizers.acoustid_recognizer import AcoustIDRecognizer
+# AcoustID support removed - only Shazam is supported
 from app.recognizers.shazamio_recognizer import ShazamioRecognizer
 
 
@@ -29,27 +29,17 @@ async def recognize_audio_file(audio_path: Path):
     # Setup recognizers
     shazam = ShazamioRecognizer(timeout_seconds=30.0)
 
-    # AcoustID requires API key
-    import os
-
-    acoustid_key = os.getenv("ACOUSTID_API_KEY")
-    acoustid = None
-    if acoustid_key:
-        acoustid = AcoustIDRecognizer(api_key=acoustid_key, timeout_seconds=30.0)
-    else:
-        print("⚠️  ACOUSTID_API_KEY not set - skipping AcoustID recognition")
+    # AcoustID support removed - only Shazam is supported
 
     try:
-        # Run recognizers in parallel
+        # Run Shazam recognition
         tasks = [shazam.recognize(audio_data)]
-        if acoustid:
-            tasks.append(acoustid.recognize(audio_data))
 
         print("🔍 Running recognition...")
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Process results
-        providers = ["Shazam"] + (["AcoustID"] if acoustid else [])
+        providers = ["Shazam"]
 
         for _i, (provider, result) in enumerate(zip(providers, results, strict=False)):
             print(f"\n{'=' * 20} {provider} Results {'=' * 20}")
@@ -78,8 +68,7 @@ async def recognize_audio_file(audio_path: Path):
 
     finally:
         # Cleanup
-        if acoustid:
-            await acoustid.close()
+        pass
 
 
 async def main():
@@ -119,9 +108,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    print(
-        "Note: Set ACOUSTID_API_KEY environment variable to enable AcoustID recognition"
-    )
+    print("Note: AcoustID support has been removed - only Shazam is supported")
     print("Usage: python examples/test_live_recognition.py [audio_file.wav]")
     print()
 

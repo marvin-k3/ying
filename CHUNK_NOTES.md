@@ -1,5 +1,50 @@
 # Ying RTSP Music Tagger - Implementation Progress
 
+## AcoustID Removal (Latest)
+
+**Issue**: AcoustID only works on whole files, not audio segments, making it unsuitable for the RTSP music tagging use case where we process 12-second audio windows.
+
+**Solution**: Removed AcoustID support entirely while preserving the multi-recognizer architecture for future extensibility.
+
+**Changes Made**:
+- **Deleted Files**:
+  - `app/recognizers/acoustid_recognizer.py` - Complete AcoustID implementation
+  - `tests/unit/test_recognizers_acoustid.py` - AcoustID unit tests
+  - `tests/data/acoustid_fixtures.json` - AcoustID test fixtures
+  - `tests/data/convert_audio.py` - AcoustID-specific audio conversion
+- **Updated Configuration**:
+  - `app/config.py` - Removed AcoustID configuration fields
+  - `pyproject.toml` - Removed `pyacoustid` dependency
+  - `Dockerfile` - Removed `libchromaprint-tools` installation
+  - `.secrets.example` - Removed AcoustID API key reference
+- **Updated Worker Logic**:
+  - `app/worker.py` - Simplified to only create Shazam recognizer
+  - `tests/unit/test_worker.py` - Updated to test Shazam-only scenarios
+- **Updated Integration Tests**:
+  - `tests/integration/test_recognizers_live.py` - Removed AcoustID test classes
+  - `examples/test_live_recognition.py` - Removed AcoustID references
+- **Updated CI/CD**:
+  - All GitHub workflows - Removed `libchromaprint-tools` installation
+- **Updated Documentation**:
+  - `PLAN.md` - Updated to reflect Shazam-only architecture
+  - `docs/INTEGRATION_TESTS.md` - Removed AcoustID documentation
+  - `tests/integration/__init__.py` - Removed AcoustID references
+
+**Architecture Preserved**:
+- **Multi-Recognizer Framework**: `ParallelRecognizers` class and `MusicRecognizer` interface remain intact
+- **Extensibility**: Easy to add new recognizers in the future (e.g., ACRCloud, AudD, etc.)
+- **Configuration**: AcoustID config fields removed but architecture supports multiple providers
+- **Testing**: All tests updated to work with Shazam-only recognition
+
+**Benefits**:
+- **Simplified Dependencies**: No more chromaprint/fpcalc system requirements
+- **Reduced Complexity**: Single recognition provider reduces configuration and testing overhead
+- **Better Performance**: No subprocess calls to fpcalc, faster recognition pipeline
+- **Cleaner Logs**: No more audio header warnings from Symphonia library
+- **Smaller Container**: Reduced Docker image size without chromaprint tools
+
+**Testing Results**: All tests pass (262 passed, 8 skipped) with 92.20% coverage.
+
 ## Audio Header Warnings Resolution (Latest)
 
 **Issue**: Application logs were showing JSON-formatted warnings from the Symphonia audio library:

@@ -263,3 +263,7 @@ class FakeShazamioRecognizer(MusicRecognizer):
         # Use real parser for consistency
         real_recognizer = ShazamioRecognizer()
         return real_recognizer._parse_shazam_response(response, recognized_at)
+
+    async def close(self) -> None:
+        """No-op for fake recognizer."""
+        pass

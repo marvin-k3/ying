@@ -353,10 +353,9 @@ class TestWorkerManager:
 
         recognizers = manager._create_recognizers()
 
-        # Should have both shazam and acoustid (since acoustid is enabled in config)
+        # Should have only shazam (AcoustID support removed)
         assert "shazam" in recognizers
-        assert "acoustid" in recognizers
-        assert len(recognizers) == 2
+        assert len(recognizers) == 1
 
     @pytest.mark.asyncio
     async def test_create_recognizers_acoustid_disabled(self, config):

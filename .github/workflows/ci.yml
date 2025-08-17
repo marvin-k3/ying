@@ -73,7 +73,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libchromaprint-tools ffmpeg
+          sudo apt-get install -y ffmpeg
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -130,7 +130,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libchromaprint-tools ffmpeg
+          sudo apt-get install -y ffmpeg
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -154,13 +154,7 @@ jobs:
           # Security: Only basic integration tests, no API keys from secrets for PR
           YING_ENABLE_LIVE_TESTS: 1
 
-      - name: Run integration tests with AcoustID (if key available)
-        if: ${{ env.ACOUSTID_API_KEY != '' }}
-        run: |
-          rye run test-integration
-        env:
-          YING_ENABLE_LIVE_TESTS: 1
-          ACOUSTID_API_KEY: ${{ secrets.ACOUSTID_API_KEY }}
+      # AcoustID support removed - only Shazam is supported
 
   # Docker build test to ensure containerization works
   docker-build:

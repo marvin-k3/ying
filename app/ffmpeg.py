@@ -65,27 +65,29 @@ class FFmpegRunner(ABC):
             "-stimeout",
             str(self.config.rtsp_timeout),
         ]
-        
+
         # Only add rw_timeout for protocols that support it
         # rw_timeout is not supported for RTSP in many FFmpeg versions
         if not self.config.rtsp_url.startswith(("rtsp://", "rtsps://")):
             args.extend(["-rw_timeout", str(self.config.rw_timeout)])
-        
-        args.extend([
-            "-i",
-            self.config.rtsp_url,
-            "-vn",  # No video
-            "-ac",
-            str(self.config.channels),  # Audio channels
-            "-ar",
-            str(self.config.sample_rate),  # Sample rate
-            "-f",
-            "wav",  # WAV format
-            "-loglevel",
-            "error",  # Only errors
-            "pipe:1",  # Output to stdout
-        ])
-        
+
+        args.extend(
+            [
+                "-i",
+                self.config.rtsp_url,
+                "-vn",  # No video
+                "-ac",
+                str(self.config.channels),  # Audio channels
+                "-ar",
+                str(self.config.sample_rate),  # Sample rate
+                "-f",
+                "wav",  # WAV format
+                "-loglevel",
+                "error",  # Only errors
+                "pipe:1",  # Output to stdout
+            ]
+        )
+
         return args
 
     def _calculate_backoff(self) -> float:

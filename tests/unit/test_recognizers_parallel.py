@@ -7,55 +7,49 @@ from pathlib import Path
 
 import pytest
 
-from app.recognizers.acoustid_recognizer import FakeAcoustIDRecognizer
 from app.recognizers.shazamio_recognizer import FakeShazamioRecognizer
 
 
 @pytest.fixture
 def fixtures():
-    """Load test fixtures for both recognizers."""
+    """Load test fixtures for Shazam recognizer."""
     shazam_path = Path(__file__).parent.parent / "data" / "shazam_fixtures.json"
-    acoustid_path = Path(__file__).parent.parent / "data" / "acoustid_fixtures.json"
 
     with open(shazam_path) as f:
         shazam_fixtures = json.load(f)
-    with open(acoustid_path) as f:
-        acoustid_fixtures = json.load(f)
 
-    return {"shazam": shazam_fixtures, "acoustid": acoustid_fixtures}
+    return {"shazam": shazam_fixtures}
 
 
 class TestParallelRecognition:
     """Test parallel recognition scenarios."""
 
     @pytest.mark.asyncio
-    async def test_parallel_shazam_acoustid_success(self, fixtures):
-        """Test parallel execution of Shazam and AcoustID recognizers."""
+    async def test_parallel_shazam_success(self, fixtures):
+        """Test parallel execution of multiple Shazam recognizers."""
         # Setup
-        shazam_recognizer = FakeShazamioRecognizer(
+        recognizer1 = FakeShazamioRecognizer(
             fixture_responses=fixtures["shazam"], current_fixture="successful_match"
         )
-        acoustid_recognizer = FakeAcoustIDRecognizer(
-            fixture_responses=fixtures["acoustid"], current_fixture="successful_match"
+        recognizer2 = FakeShazamioRecognizer(
+            fixture_responses=fixtures["shazam"], current_fixture="successful_match"
         )
 
         # Execute in parallel
         start_time = time.time()
-        shazam_task = shazam_recognizer.recognize(b"fake_wav_data")
-        acoustid_task = acoustid_recognizer.recognize(b"fake_wav_data")
+        task1 = recognizer1.recognize(b"fake_wav_data")
+        task2 = recognizer2.recognize(b"fake_wav_data")
 
-        shazam_result, acoustid_result = await asyncio.gather(
-            shazam_task, acoustid_task
-        )
+        result1, result2 = await asyncio.gather(task1, task2)
         end_time = time.time()
 
         # Verify both succeeded
-        assert shazam_result.is_success
-        assert acoustid_result.is_success
-        assert shazam_result.provider == "shazam"
-        assert acoustid_result.provider == "acoustid"
-        assert shazam_result.title == "Bohemian Rhapsody"
-        assert acoustid_result.title == "Bohemian Rhapsody"
+        assert result1.is_success
+        assert result2.is_success
+        assert result1.provider == "shazam"
+        assert result2.provider == "shazam"
+        assert result1.title == "Bohemian Rhapsody"
+        assert result2.title == "Bohemian Rhapsody"
 
         # Should be fast (fake recognizers)
         assert end_time - start_time < 1.0
@@ -68,9 +62,7 @@ class TestParallelRecognition:
             FakeShazamioRecognizer(
                 fixture_responses=fixtures["shazam"], current_fixture="successful_match"
             ),
-            FakeAcoustIDRecognizer(
-                fixture_responses=fixtures["acoustid"], should_fail=True
-            ),
+            FakeShazamioRecognizer(should_fail=True),
             FakeShazamioRecognizer(
                 fixture_responses=fixtures["shazam"], current_fixture="no_match"
             ),
@@ -96,7 +88,7 @@ class TestParallelRecognition:
         # Setup - mix of timeouts and successes
         recognizers = [
             FakeShazamioRecognizer(should_timeout=True),
-            FakeAcoustIDRecognizer(should_timeout=True),
+            FakeShazamioRecognizer(should_timeout=True),
             FakeShazamioRecognizer(
                 fixture_responses=fixtures["shazam"], current_fixture="successful_match"
             ),
@@ -176,11 +168,11 @@ class TestParallelRecognition:
         # Setup recognizers with different failure modes
         recognizers = [
             FakeShazamioRecognizer(should_fail=True),
-            FakeAcoustIDRecognizer(should_timeout=True),
+            FakeShazamioRecognizer(should_timeout=True),
             FakeShazamioRecognizer(
                 fixture_responses=fixtures["shazam"], current_fixture="successful_match"
             ),
-            FakeAcoustIDRecognizer(fingerprint_should_fail=True),
+            FakeShazamioRecognizer(should_fail=True),
         ]
 
         # Execute all in parallel
@@ -191,18 +183,18 @@ class TestParallelRecognition:
         assert len(results) == 4
         assert all(not isinstance(r, Exception) for r in results)
 
-        fail_result, timeout_result, success_result, fingerprint_result = results
+        fail_result, timeout_result, success_result, fail_result2 = results
 
         # Only one should succeed
         assert not fail_result.is_success
         assert not timeout_result.is_success
         assert success_result.is_success
-        assert not fingerprint_result.is_success
+        assert not fail_result2.is_success
 
         # Verify specific error messages
         assert "Simulated recognition failure" in fail_result.error_message
         assert "timed out" in timeout_result.error_message
-        assert "fingerprint" in fingerprint_result.error_message
+        assert "Simulated recognition failure" in fail_result2.error_message
 
 
 class TestRecognitionQueue:
@@ -327,9 +319,9 @@ async def test_recognition_performance_benchmarks():
 
 
 @pytest.mark.asyncio
-async def test_mixed_provider_parallel_execution(fixtures):
-    """Test mixed Shazam and AcoustID providers in parallel."""
-    # Create mixed recognizers
+async def test_shazam_only_parallel_execution(fixtures):
+    """Test multiple Shazam recognizers in parallel with different fixtures."""
+    # Create Shazam recognizers with different fixtures
     recognizers = []
 
     # Add Shazam recognizers with different fixtures
@@ -340,51 +332,40 @@ async def test_mixed_provider_parallel_execution(fixtures):
             )
         )
 
-    # Add AcoustID recognizers with different fixtures
-    for fixture_name in ["successful_match", "no_match", "low_confidence_match"]:
-        recognizers.append(
-            FakeAcoustIDRecognizer(
-                fixture_responses=fixtures["acoustid"], current_fixture=fixture_name
-            )
-        )
-
     # Execute all in parallel
     tasks = [r.recognize(b"fake_wav_data") for r in recognizers]
     results = await asyncio.gather(*tasks)
 
     # Verify results
-    assert len(results) == 6
+    assert len(results) == 3
 
     # Check providers
     shazam_results = [r for r in results if r.provider == "shazam"]
-    acoustid_results = [r for r in results if r.provider == "acoustid"]
-
     assert len(shazam_results) == 3
-    assert len(acoustid_results) == 3
 
     # Check success patterns
     successful_results = [r for r in results if r.is_success]
     no_match_results = [r for r in results if r.is_no_match]
 
-    assert len(successful_results) == 4  # 2 successful + 2 low confidence
-    assert len(no_match_results) == 2  # 2 no match
+    assert len(successful_results) == 2  # 1 successful + 1 low confidence
+    assert len(no_match_results) == 1  # 1 no match
 
 
 @pytest.mark.asyncio
 async def test_concurrent_recognizer_cleanup():
     """Test proper cleanup of recognizer resources in concurrent scenarios."""
     # Create recognizers that need cleanup
-    acoustid_recognizers = [FakeAcoustIDRecognizer() for _ in range(5)]
+    shazam_recognizers = [FakeShazamioRecognizer() for _ in range(5)]
 
     # Use recognizers
-    tasks = [r.recognize(b"fake_wav_data") for r in acoustid_recognizers]
+    tasks = [r.recognize(b"fake_wav_data") for r in shazam_recognizers]
     results = await asyncio.gather(*tasks)
 
     # Verify all completed
     assert len(results) == 5
 
     # Clean up all recognizers
-    cleanup_tasks = [r.close() for r in acoustid_recognizers]
+    cleanup_tasks = [r.close() for r in shazam_recognizers]
     await asyncio.gather(*cleanup_tasks)
 
     # Should complete without errors

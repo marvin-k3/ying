@@ -16,7 +16,7 @@
 - Write tests first where practical. Table-driven tests for config/edge cases.
 - Property tests (Hypothesis) for dedup time bucketing and retention windows.
 - Fake time (Clock interface) in scheduler tests. No time.sleep in tests.
-- No network in tests; use recorded JSON fixtures for Shazam/AcoustID.
+- No network in tests; use recorded JSON fixtures for Shazam.
 - Keep tests fast: < 10s total.
 
 # ==== OBSERVABILITY ====
