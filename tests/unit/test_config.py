@@ -296,7 +296,7 @@ class TestConfig:
             assert config.otel_service_name == "ying"
             # The endpoint might be set from .env file, so we can't assert it's None
             # Just verify it's a string (either None or a URL)
-            assert isinstance(config.otel_exporter_otlp_endpoint, (str, type(None)))
+            assert isinstance(config.otel_exporter_otlp_endpoint, str | type(None))
             assert config.otel_traces_sampler_arg == 1.0
             assert config.otel_console_exporter is False
 
