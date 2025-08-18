@@ -1,8 +1,7 @@
 """OpenTelemetry tracing setup for RTSP Music Tagger."""
 
-import os
 import logging
-from typing import Optional
+import os
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -22,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 def setup_tracing(
     service_name: str = "rtsp-music-tagger",
-    endpoint: Optional[str] = None,
+    endpoint: str | None = None,
     sample_rate: float = 1.0,
     enable_fastapi: bool = True,
     enable_aiohttp: bool = True,
@@ -59,7 +58,11 @@ def setup_tracing(
     )
 
     # Add console exporter if enabled (useful for debugging and testing)
-    if enable_console_exporter or os.getenv("OTEL_CONSOLE_EXPORTER", "").lower() in ("true", "1", "yes"):
+    if enable_console_exporter or os.getenv("OTEL_CONSOLE_EXPORTER", "").lower() in (
+        "true",
+        "1",
+        "yes",
+    ):
         console_exporter = ConsoleSpanExporter()
         provider.add_span_processor(BatchSpanProcessor(console_exporter))
         logger.info("Added console span exporter for tracing")
@@ -71,7 +74,9 @@ def setup_tracing(
             provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
             logger.info(f"Added OTLP span exporter with endpoint: {endpoint}")
         except Exception as e:
-            logger.warning(f"Failed to setup OTLP exporter with endpoint {endpoint}: {e}")
+            logger.warning(
+                f"Failed to setup OTLP exporter with endpoint {endpoint}: {e}"
+            )
             # Don't fail the entire setup if OTLP exporter fails
     else:
         logger.info("No OTLP endpoint provided, skipping OTLP exporter")

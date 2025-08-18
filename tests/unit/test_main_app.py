@@ -106,7 +106,10 @@ class TestLifespan:
             # During startup
             mock_setup_logging.assert_called_once_with(level="INFO", structured=True)
             mock_setup_tracing.assert_called_once_with(
-                service_name="test-service", endpoint="http://test", sample_rate=1.0, enable_console_exporter=False
+                service_name="test-service",
+                endpoint="http://test",
+                sample_rate=1.0,
+                enable_console_exporter=False,
             )
             mock_migration_manager_class.assert_called_once_with(mock_config.db_path)
             mock_migration_manager.migrate_all.assert_called_once()

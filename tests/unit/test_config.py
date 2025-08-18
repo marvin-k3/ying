@@ -290,7 +290,7 @@ class TestConfig:
         test_env = minimal_env.copy()
         test_env.pop("OTEL_EXPORTER_OTLP_ENDPOINT", None)
         test_env.pop("OTEL_CONSOLE_EXPORTER", None)
-        
+
         with patch.dict(os.environ, test_env, clear=True):
             config = Config()
             assert config.otel_service_name == "ying"

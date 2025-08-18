@@ -1,6 +1,6 @@
 """Configuration management for ying RTSP music tagger."""
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, computed_field, field_validator
 from pydantic_settings import BaseSettings
@@ -66,7 +66,7 @@ class Config(BaseSettings):
     log_level: str = Field(default="INFO")
     structured_logs: bool = Field(default=True)
     otel_service_name: str = Field(default="ying")
-    otel_exporter_otlp_endpoint: Optional[str] = Field(default=None)
+    otel_exporter_otlp_endpoint: str | None = Field(default=None)
     otel_traces_sampler_arg: float = Field(default=1.0, ge=0.0, le=1.0)
     otel_console_exporter: bool = Field(default=False)
 

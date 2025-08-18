@@ -82,16 +82,11 @@ class FFmpegRunner(ABC):
                 str(self.config.sample_rate),  # Sample rate
                 "-acodec",
                 "pcm_s16le",  # 16-bit signed little-endian PCM
-                "-sample_fmt",
-                "s16",  # Explicit sample format
-                "-avoid_negative_ts",
-                "make_zero",  # Avoid negative timestamps
-                "-fflags",
-                "+genpts",  # Generate presentation timestamps
                 "-f",
-                "s16le",  # Raw PCM format (16-bit little-endian)
+                "wav",  # WAV format
                 "-loglevel",
                 "error",  # Only errors
+                "-y",  # Overwrite output files (for pipe)
                 "pipe:1",  # Output to stdout
             ]
         )

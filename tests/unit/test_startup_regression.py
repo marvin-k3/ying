@@ -1,6 +1,5 @@
 """Regression tests to demonstrate catching the startup errors we encountered."""
 
-import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
