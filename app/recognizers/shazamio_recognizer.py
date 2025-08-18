@@ -32,12 +32,12 @@ class ShazamioRecognizer(MusicRecognizer):
         return self._shazam
 
     async def recognize(
-        self, wav_bytes: bytes, timeout_seconds: float = 30.0
+        self, pcm_bytes: bytes, timeout_seconds: float = 30.0
     ) -> RecognitionResult:
         """Recognize music using Shazam API.
 
         Args:
-            wav_bytes: WAV audio data as bytes.
+            pcm_bytes: Raw PCM audio data as bytes (16-bit signed little-endian).
             timeout_seconds: Maximum time to wait for recognition.
 
         Returns:
@@ -46,6 +46,17 @@ class ShazamioRecognizer(MusicRecognizer):
         recognized_at = dt.datetime.now(dt.UTC).replace(tzinfo=None)
 
         try:
+            # Validate PCM data has reasonable size
+            if len(pcm_bytes) < 1024:  # At least 512 samples at 16-bit
+                return RecognitionResult(
+                    provider="shazam",
+                    provider_track_id="",
+                    title="",
+                    artist="",
+                    recognized_at_utc=recognized_at,
+                    error_message="PCM data too short - cannot process audio",
+                )
+
             # Use provided timeout or default
             actual_timeout = timeout_seconds or self.timeout_seconds
 
@@ -53,7 +64,7 @@ class ShazamioRecognizer(MusicRecognizer):
 
             # Perform recognition with timeout
             response = await asyncio.wait_for(
-                shazam.recognize(wav_bytes), timeout=actual_timeout
+                shazam.recognize(pcm_bytes), timeout=actual_timeout
             )
 
             logger.debug(f"Shazam response: {response}")

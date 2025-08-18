@@ -1,6 +1,8 @@
 """OpenTelemetry tracing setup for RTSP Music Tagger."""
 
 import os
+import logging
+from typing import Optional
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -11,18 +13,21 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 # from opentelemetry.instrumentation.asyncio import AsyncioInstrumentor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 # Note: Sampling configuration simplified for compatibility
+
+logger = logging.getLogger(__name__)
 
 
 def setup_tracing(
     service_name: str = "rtsp-music-tagger",
-    endpoint: str | None = None,
+    endpoint: Optional[str] = None,
     sample_rate: float = 1.0,
     enable_fastapi: bool = True,
     enable_aiohttp: bool = True,
     enable_asyncio: bool = True,
+    enable_console_exporter: bool = False,
 ) -> None:
     """Setup OpenTelemetry tracing.
 
@@ -33,6 +38,7 @@ def setup_tracing(
         enable_fastapi: Whether to instrument FastAPI
         enable_aiohttp: Whether to instrument aiohttp
         enable_asyncio: Whether to instrument asyncio
+        enable_console_exporter: Whether to enable console exporter for debugging
     """
     # Get endpoint from environment if not provided
     if endpoint is None:
@@ -52,10 +58,23 @@ def setup_tracing(
         resource=resource,
     )
 
-    # Add OTLP exporter if endpoint is provided
-    if endpoint:
-        otlp_exporter = OTLPSpanExporter(endpoint=endpoint)
-        provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+    # Add console exporter if enabled (useful for debugging and testing)
+    if enable_console_exporter or os.getenv("OTEL_CONSOLE_EXPORTER", "").lower() in ("true", "1", "yes"):
+        console_exporter = ConsoleSpanExporter()
+        provider.add_span_processor(BatchSpanProcessor(console_exporter))
+        logger.info("Added console span exporter for tracing")
+
+    # Add OTLP exporter if endpoint is provided and not empty
+    if endpoint and endpoint.strip():
+        try:
+            otlp_exporter = OTLPSpanExporter(endpoint=endpoint)
+            provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+            logger.info(f"Added OTLP span exporter with endpoint: {endpoint}")
+        except Exception as e:
+            logger.warning(f"Failed to setup OTLP exporter with endpoint {endpoint}: {e}")
+            # Don't fail the entire setup if OTLP exporter fails
+    else:
+        logger.info("No OTLP endpoint provided, skipping OTLP exporter")
 
     # Set the global tracer provider
     trace.set_tracer_provider(provider)

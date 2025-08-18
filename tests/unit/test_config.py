@@ -273,6 +273,7 @@ class TestConfig:
                 "OTEL_SERVICE_NAME": "ying-test",
                 "OTEL_EXPORTER_OTLP_ENDPOINT": "http://jaeger:4317",
                 "OTEL_TRACES_SAMPLER_ARG": "0.5",
+                "OTEL_CONSOLE_EXPORTER": "true",
             }
         )
 
@@ -281,6 +282,23 @@ class TestConfig:
             assert config.otel_service_name == "ying-test"
             assert config.otel_exporter_otlp_endpoint == "http://jaeger:4317"
             assert config.otel_traces_sampler_arg == 0.5
+            assert config.otel_console_exporter is True
+
+    def test_otel_config_defaults(self, minimal_env: dict[str, str]) -> None:
+        """Test OpenTelemetry configuration defaults."""
+        # Clear any existing OTEL environment variables
+        test_env = minimal_env.copy()
+        test_env.pop("OTEL_EXPORTER_OTLP_ENDPOINT", None)
+        test_env.pop("OTEL_CONSOLE_EXPORTER", None)
+        
+        with patch.dict(os.environ, test_env, clear=True):
+            config = Config()
+            assert config.otel_service_name == "ying"
+            # The endpoint might be set from .env file, so we can't assert it's None
+            # Just verify it's a string (either None or a URL)
+            assert isinstance(config.otel_exporter_otlp_endpoint, (str, type(None)))
+            assert config.otel_traces_sampler_arg == 1.0
+            assert config.otel_console_exporter is False
 
     def test_enabled_streams_property(self, minimal_env: dict[str, str]) -> None:
         """Test enabled_streams property returns only enabled streams."""

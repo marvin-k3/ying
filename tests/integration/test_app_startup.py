@@ -48,6 +48,8 @@ class TestAppStartup:
                 "STREAM_1_URL": "rtsp://test.url",
                 "STREAM_1_ENABLED": "false",  # Disable to avoid FFmpeg issues
                 "LOG_LEVEL": "WARNING",  # Reduce log noise
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "",  # Disable OTLP tracing
+                "OTEL_CONSOLE_EXPORTER": "false",  # Disable console tracing
             }
 
             # Save original env vars and set test ones
@@ -98,6 +100,8 @@ class TestAppStartup:
                 "STREAM_1_URL": "rtsp://test.url",
                 "STREAM_1_ENABLED": "false",  # Disable streams to avoid FFmpeg
                 "LOG_LEVEL": "ERROR",  # Minimize log output
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "",  # Disable OTLP tracing
+                "OTEL_CONSOLE_EXPORTER": "false",  # Disable console tracing
             }
 
             for key, value in test_env.items():

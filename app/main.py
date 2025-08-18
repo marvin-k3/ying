@@ -41,6 +41,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         service_name=config.otel_service_name,
         endpoint=config.otel_exporter_otlp_endpoint,
         sample_rate=config.otel_traces_sampler_arg,
+        enable_console_exporter=config.otel_console_exporter,
     )
 
     # Run migrations

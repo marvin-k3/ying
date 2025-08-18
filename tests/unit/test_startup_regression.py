@@ -1,5 +1,6 @@
 """Regression tests to demonstrate catching the startup errors we encountered."""
 
+import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -30,6 +31,7 @@ class TestStartupRegressionCases:
             mock_config.otel_service_name = "test"
             mock_config.otel_exporter_otlp_endpoint = "http://test"
             mock_config.otel_traces_sampler_arg = 1.0
+            mock_config.otel_console_exporter = False
             mock_config_class.return_value = mock_config
 
             # Setup migration manager with WRONG method name (this is the bug)
@@ -81,6 +83,7 @@ class TestStartupRegressionCases:
             mock_config.otel_service_name = "test"
             mock_config.otel_exporter_otlp_endpoint = "http://test"
             mock_config.otel_traces_sampler_arg = 1.0
+            mock_config.otel_console_exporter = False
             mock_config_class.return_value = mock_config
 
             # Setup migration manager correctly

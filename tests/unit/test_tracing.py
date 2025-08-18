@@ -55,6 +55,60 @@ class TestTracingSetup:
         # Check that OTLP exporter was created
         mock_otlp_exporter.assert_called_once_with(endpoint=endpoint)
 
+    @patch("app.tracing.OTLPSpanExporter")
+    @patch("app.tracing.BatchSpanProcessor")
+    def test_setup_tracing_with_console_exporter(
+        self,
+        mock_batch_processor,
+        mock_otlp_exporter,
+    ) -> None:
+        """Test tracing setup with console exporter enabled."""
+        setup_tracing(
+            service_name="test-service",
+            endpoint=None,
+            enable_console_exporter=True,
+        )
+
+        # Check that console exporter was added (BatchSpanProcessor called for console)
+        assert mock_batch_processor.call_count >= 1
+
+    @patch("app.tracing.OTLPSpanExporter")
+    @patch("app.tracing.BatchSpanProcessor")
+    def test_setup_tracing_with_console_exporter_env(
+        self,
+        mock_batch_processor,
+        mock_otlp_exporter,
+    ) -> None:
+        """Test tracing setup with console exporter enabled via environment."""
+        with patch.dict(os.environ, {"OTEL_CONSOLE_EXPORTER": "true"}):
+            setup_tracing(
+                service_name="test-service",
+                endpoint=None,
+            )
+
+        # Check that console exporter was added
+        assert mock_batch_processor.call_count >= 1
+
+    @patch("app.tracing.OTLPSpanExporter")
+    @patch("app.tracing.BatchSpanProcessor")
+    def test_setup_tracing_otlp_failure_handling(
+        self,
+        mock_batch_processor,
+        mock_otlp_exporter,
+    ) -> None:
+        """Test that tracing setup continues even if OTLP exporter fails."""
+        # Make OTLP exporter raise an exception
+        mock_otlp_exporter.side_effect = Exception("OTLP connection failed")
+
+        # Setup should not fail
+        setup_tracing(
+            service_name="test-service",
+            endpoint="http://invalid-endpoint:4317",
+        )
+
+        # OTLP exporter should have been attempted
+        mock_otlp_exporter.assert_called_once()
+
     @patch.dict(os.environ, {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://jaeger:4317"})
     def test_setup_tracing_from_env(self) -> None:
         """Test tracing setup using environment variable."""
@@ -71,6 +125,19 @@ class TestTracingSetup:
         setup_tracing(
             service_name="test-service",
             endpoint=None,
+            enable_fastapi=False,
+            enable_aiohttp=False,
+            enable_asyncio=False,
+        )
+
+        # Test that setup completes without errors
+        assert True
+
+    def test_setup_tracing_with_empty_endpoint(self) -> None:
+        """Test tracing setup with empty endpoint string."""
+        setup_tracing(
+            service_name="test-service",
+            endpoint="",
             enable_fastapi=False,
             enable_aiohttp=False,
             enable_asyncio=False,

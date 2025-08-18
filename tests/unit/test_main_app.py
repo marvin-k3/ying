@@ -85,6 +85,7 @@ class TestLifespan:
         mock_config.otel_service_name = "test-service"
         mock_config.otel_exporter_otlp_endpoint = "http://test"
         mock_config.otel_traces_sampler_arg = 1.0
+        mock_config.otel_console_exporter = False
         mock_config_class.return_value = mock_config
 
         mock_migration_manager = AsyncMock()
@@ -105,7 +106,7 @@ class TestLifespan:
             # During startup
             mock_setup_logging.assert_called_once_with(level="INFO", structured=True)
             mock_setup_tracing.assert_called_once_with(
-                service_name="test-service", endpoint="http://test", sample_rate=1.0
+                service_name="test-service", endpoint="http://test", sample_rate=1.0, enable_console_exporter=False
             )
             mock_migration_manager_class.assert_called_once_with(mock_config.db_path)
             mock_migration_manager.migrate_all.assert_called_once()
@@ -142,6 +143,7 @@ class TestLifespan:
         mock_config.otel_service_name = "test-service"
         mock_config.otel_exporter_otlp_endpoint = "http://test"
         mock_config.otel_traces_sampler_arg = 1.0
+        mock_config.otel_console_exporter = False
         mock_config_class.return_value = mock_config
 
         mock_migration_manager = AsyncMock()
@@ -187,15 +189,17 @@ class TestLifespan:
         """Test that lifespan calls the correct worker manager method names."""
         # This test specifically checks for the worker method name bug
         mock_config = MagicMock()
+        mock_config.db_path = Path("/tmp/test.db")
         mock_config.log_level = "INFO"
         mock_config.structured_logs = True
         mock_config.otel_service_name = "test-service"
         mock_config.otel_exporter_otlp_endpoint = "http://test"
         mock_config.otel_traces_sampler_arg = 1.0
+        mock_config.otel_console_exporter = False
         mock_config_class.return_value = mock_config
 
         mock_migration_manager = AsyncMock()
-        mock_migration_manager.migrate_all.return_value = []
+        mock_migration_manager.migrate_all.return_value = ["0001_init"]
         mock_migration_manager_class.return_value = mock_migration_manager
 
         mock_worker_manager = AsyncMock()
@@ -217,12 +221,12 @@ class TestLifespan:
 
         # Verify the incorrect methods don't exist or aren't called
         assert (
-            not hasattr(mock_worker_manager, "start")
-            or not mock_worker_manager.start.called
+            not hasattr(mock_worker_manager, "start_workers")
+            or not mock_worker_manager.start_workers.called
         )
         assert (
-            not hasattr(mock_worker_manager, "stop")
-            or not mock_worker_manager.stop.called
+            not hasattr(mock_worker_manager, "stop_workers")
+            or not mock_worker_manager.stop_workers.called
         )
 
     @pytest.mark.asyncio
@@ -246,6 +250,7 @@ class TestLifespan:
         mock_config.otel_service_name = "test-service"
         mock_config.otel_exporter_otlp_endpoint = "http://test"
         mock_config.otel_traces_sampler_arg = 1.0
+        mock_config.otel_console_exporter = False
         mock_config_class.return_value = mock_config
 
         mock_migration_manager = AsyncMock()
@@ -287,10 +292,11 @@ class TestLifespan:
         mock_config.otel_service_name = "test-service"
         mock_config.otel_exporter_otlp_endpoint = "http://test"
         mock_config.otel_traces_sampler_arg = 1.0
+        mock_config.otel_console_exporter = False
         mock_config_class.return_value = mock_config
 
         mock_migration_manager = AsyncMock()
-        mock_migration_manager.migrate_all.return_value = []
+        mock_migration_manager.migrate_all.return_value = ["0001_init"]
         mock_migration_manager_class.return_value = mock_migration_manager
 
         mock_worker_manager = AsyncMock()

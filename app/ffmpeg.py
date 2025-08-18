@@ -80,8 +80,16 @@ class FFmpegRunner(ABC):
                 str(self.config.channels),  # Audio channels
                 "-ar",
                 str(self.config.sample_rate),  # Sample rate
+                "-acodec",
+                "pcm_s16le",  # 16-bit signed little-endian PCM
+                "-sample_fmt",
+                "s16",  # Explicit sample format
+                "-avoid_negative_ts",
+                "make_zero",  # Avoid negative timestamps
+                "-fflags",
+                "+genpts",  # Generate presentation timestamps
                 "-f",
-                "wav",  # WAV format
+                "s16le",  # Raw PCM format (16-bit little-endian)
                 "-loglevel",
                 "error",  # Only errors
                 "pipe:1",  # Output to stdout
